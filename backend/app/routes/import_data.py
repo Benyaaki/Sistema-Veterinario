@@ -28,7 +28,7 @@ async def import_csv_data(
         # Normalize headers: lowercase and strip
         df.columns = [c.lower().strip() for c in df.columns]
         
-        required_cols = ['tutor_email', 'tutor_name', 'patient_name', 'species']
+        required_cols = ['tutor_email']
         missing_cols = [c for c in required_cols if c not in df.columns]
         
         if missing_cols:
@@ -45,52 +45,81 @@ async def import_csv_data(
             try:
                 # 1. Handle Tutor
                 email = str(row['tutor_email']).strip().lower()
-                name = str(row['tutor_name']).strip()
-                phone = str(row.get('tutor_phone', '')).strip()
+                # tutor_name is optional if tutor exists, but better to provide it if we want to create it
+                name_val = row.get('tutor_name')
+                name = str(name_val).strip() if pd.notna(name_val) else None
+                
+                phone_val = row.get('tutor_phone')
+                phone = str(phone_val).strip() if pd.notna(phone_val) else None
                 
                 tutor = await Tutor.find_one(Tutor.email == email)
+                
                 if not tutor:
+                    if not name:
+                        stats["errors"].append(f"Row {index + 2}: Missing tutor_name for new tutor {email}")
+                        continue
+                        
                     tutor = Tutor(
                         full_name=name,
                         email=email,
-                        phone=phone if phone != 'nan' else None,
+                        phone=phone,
                         address=""
                     )
                     await tutor.insert()
                     stats["tutors_created"] += 1
                 else:
-                    # Optional: Update phone if missing? For now just link.
-                    stats["tutors_updated"] += 1
+                    # Update info if provided
+                    updated = False
+                    if name and name != tutor.full_name:
+                        tutor.full_name = name
+                        updated = True
+                    if phone and phone != tutor.phone:
+                        tutor.phone = phone
+                        updated = True
+                    
+                    if updated:
+                        await tutor.save()
+                        stats["tutors_updated"] += 1
                 
-                # 2. Handle Patient
-                p_name = str(row['patient_name']).strip()
-                species_raw = str(row['species']).strip()
-                
-                # Logic for species/custom species
-                if species_raw in ["Perro", "Gato"]:
-                    species_val = species_raw
-                else:
-                    species_val = "Otro" 
-                    # If we had a custom_species field logic in CSV we'd map it here, 
-                    # but for now we'll just store "Otro" OR 
-                    # based on previous logic, we might want to store the actual string if it's not Perro/Gato?
-                    # The PatientForm logic stores the custom string in `species` field directly if it's not Perro/Gato.
-                    # Let's do that for consistency with the recent PatientForm changes.
-                    species_val = species_raw
+                # 2. Handle Patient (Only if patient_name is present and filled)
+                if 'patient_name' in df.columns and pd.notna(row['patient_name']):
+                    p_name = str(row['patient_name']).strip()
+                    if p_name:
+                        if 'species' not in df.columns:
+                             stats["errors"].append(f"Row {index + 2}: Missing 'species' column for patient {p_name}")
+                             continue
 
-                breed = str(row.get('breed', '')).strip()
-                sex = str(row.get('sex', '')).strip()
-                
-                patient = Patient(
-                    name=p_name,
-                    species=species_val,
-                    breed=breed if breed != 'nan' else "Mestizo",
-                    sex=sex if sex != 'nan' else "Desconocido",
-                    color=str(row.get('color', '')).strip(),
-                    tutor_id=tutor.id
-                )
-                await patient.insert()
-                stats["patients_created"] += 1
+                        species_raw = str(row.get('species', 'Otro')).strip()
+                        
+                        # Logic for species/custom species
+                        if species_raw in ["Perro", "Gato"]:
+                            species_val = species_raw
+                        else:
+                            species_val = species_raw # Capture custom species directly
+
+                        breed_val = row.get('breed')
+                        breed = str(breed_val).strip() if pd.notna(breed_val) else "Mestizo"
+                        
+                        sex_val = row.get('sex')
+                        sex = str(sex_val).strip() if pd.notna(sex_val) else "Desconocido"
+                        
+                        color_val = row.get('color')
+                        color = str(color_val).strip() if pd.notna(color_val) else ""
+                        
+                        # Check if patient already exists for this tutor to avoid duplicates? 
+                        # For now, simplistic check or just add (user might want to add another pet with same name? unlikely but possible)
+                        # Let's assume unique name per tutor for safety? No, allow duplicates for now, admin can clean up.
+                        
+                        patient = Patient(
+                            name=p_name,
+                            species=species_val,
+                            breed=breed,
+                            sex=sex,
+                            color=color,
+                            tutor_id=tutor.id
+                        )
+                        await patient.insert()
+                        stats["patients_created"] += 1
                 
             except Exception as e:
                 stats["errors"].append(f"Row {index + 2}: {str(e)}")
