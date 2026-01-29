@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+    height: 100%;
+    background-color: #FAFAFA;
+    color: #374151;
+    /* Gray-700 default text for softness */
+}
