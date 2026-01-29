@@ -27,3 +27,21 @@ async def init_db():
             Service
         ]
     )
+    await create_initial_user()
+
+async def create_initial_user():
+    from app.core.security import get_password_hash # Import here to avoid circular depends if any
+    
+    admin = await User.find_one(User.email == settings.ADMIN_EMAIL)
+    if not admin:
+        hashed = get_password_hash(settings.ADMIN_PASSWORD)
+        user = User(
+            name="Administrador",
+            email=settings.ADMIN_EMAIL,
+            password_hash=hashed,
+            role="admin"
+        )
+        await user.insert()
+        print(f"--- Admin user created: {settings.ADMIN_EMAIL} ---")
+    else:
+        print("--- Admin user already exists ---")
