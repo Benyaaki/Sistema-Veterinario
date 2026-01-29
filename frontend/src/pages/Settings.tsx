@@ -341,9 +341,43 @@ const ImportSettings = () => {
         }
     };
 
+    const handleDownloadTemplate = () => {
+        const headers = ['tutor_email', 'tutor_name', 'tutor_phone', 'patient_name', 'species', 'breed', 'sex', 'color'];
+        const rows = [
+            ['ejemplo@email.com', 'Juan Pérez', '555-1234', 'Firulais', 'Perro', 'Labrador', 'Macho', 'Negro'],
+            ['ejemplo@email.com', 'Juan Pérez', '555-1234', 'Michi', 'Gato', 'Siamés', 'Hembra', 'Blanco'],
+            ['maria@email.com', 'María Gómez', '555-9876', 'Rex', 'Perro', 'Pastor Alemán', 'Macho', 'Café']
+        ];
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'plantilla_importacion_pattyvet.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Importar Datos Masivos</h2>
+            <div className="flex justify-between items-center border-b pb-2">
+                <h2 className="text-xl font-bold text-gray-800">Importar Datos Masivos</h2>
+                <button
+                    onClick={handleDownloadTemplate}
+                    className="text-primary hover:text-blue-700 text-sm font-medium flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                    <Upload className="w-4 h-4 rotate-180" /> {/* Reusing upload icon reversed as download */}
+                    Descargar Plantilla de Ejemplo
+                </button>
+            </div>
+
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6">
                 <h3 className="font-semibold text-blue-900 mb-2">Instrucciones CSV</h3>
                 <p className="text-sm text-blue-800 mb-2">
