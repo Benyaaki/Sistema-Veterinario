@@ -12,7 +12,6 @@ const Dashboard = () => {
         total_tutors: 0,
         consultations_today: 0
     });
-    const [upcoming, setUpcoming] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Welcome Modal State

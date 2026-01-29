@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -95,7 +95,7 @@ const PatientForm = () => {
         }
     }, [isEdit, id, setValue]);
 
-    const onSubmit = async (data: FormData) => {
+    const onSubmit: SubmitHandler<FormData> = async (data) => {
         try {
             // If species is 'Otro', use custom_species as the actual species value sent to backend?
             // Or keep 'Otro' and add a new field? 

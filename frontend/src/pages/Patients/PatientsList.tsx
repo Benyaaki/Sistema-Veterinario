@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
-import { Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2 } from 'lucide-react';
 
 interface Patient {
     _id: string;
