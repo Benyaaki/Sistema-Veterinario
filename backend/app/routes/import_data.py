@@ -11,8 +11,8 @@ router = APIRouter()
 
 @router.post("/csv")
 async def import_csv_data(
-    file: UploadFile = File(...),
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
+    file: UploadFile = File(...)
 ):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="File must be a CSV")
