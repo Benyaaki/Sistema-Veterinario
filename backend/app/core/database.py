@@ -33,8 +33,9 @@ async def create_initial_user():
     from app.core.security import get_password_hash # Import here to avoid circular depends if any
     
     admin = await User.find_one(User.email == settings.ADMIN_EMAIL)
+    hashed = get_password_hash(settings.ADMIN_PASSWORD)
+    
     if not admin:
-        hashed = get_password_hash(settings.ADMIN_PASSWORD)
         user = User(
             name="Administrador",
             email=settings.ADMIN_EMAIL,
@@ -44,4 +45,7 @@ async def create_initial_user():
         await user.insert()
         print(f"--- Admin user created: {settings.ADMIN_EMAIL} ---")
     else:
-        print("--- Admin user already exists ---")
+        # Force update password to match current environment variable
+        admin.password_hash = hashed
+        await admin.save()
+        print(f"--- Admin password updated for: {settings.ADMIN_EMAIL} ---")
