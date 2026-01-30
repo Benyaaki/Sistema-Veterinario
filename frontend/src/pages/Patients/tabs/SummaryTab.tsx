@@ -12,7 +12,7 @@ const SummaryTab = ({ patient }: any) => {
                 <div>
                     <span className="block text-sm text-gray-500">Tutor</span>
                     {patient.tutor ? (
-                        <Link to={`/tutores`} className="font-medium text-blue-600 hover:underline">
+                        <Link to={`/tutores/${patient.tutor._id || patient.tutor_id}`} className="font-medium text-blue-600 hover:underline">
                             {patient.tutor.full_name}
                         </Link>
                     ) : (

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Agenda from './pages/Agenda';
 import TutorsList from './pages/Tutors/TutorsList';
 import TutorForm from './pages/Tutors/TutorForm';
+import TutorDetail from './pages/Tutors/TutorDetail';
 import PatientsList from './pages/Patients/PatientsList';
 import PatientForm from './pages/Patients/PatientForm';
 import PatientDetail from './pages/Patients/PatientDetail';
@@ -27,7 +28,8 @@ function App() {
 
               <Route path="/tutores" element={<TutorsList />} />
               <Route path="/tutores/crear" element={<TutorForm />} />
-              <Route path="/tutores/:id" element={<TutorForm />} />
+              <Route path="/tutores/editar/:id" element={<TutorForm />} />
+              <Route path="/tutores/:id" element={<TutorDetail />} />
 
               <Route path="/pacientes" element={<PatientsList />} />
               <Route path="/pacientes/crear" element={<PatientForm />} />

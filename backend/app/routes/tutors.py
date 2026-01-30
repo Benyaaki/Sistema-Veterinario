@@ -59,11 +59,42 @@ async def update_tutor(id: str, update_data: TutorUpdate, user = Depends(get_cur
     await tutor.set(update_data.model_dump(exclude_unset=True))
     return tutor
 
-@router.delete("/{id}")
-async def delete_tutor(id: str, user = Depends(get_current_user)):
+    
+    await tutor.delete()
+    return {"message": "Tutor deleted"}
+
+@router.get("/{id}/details")
+async def get_tutor_details(id: str, user = Depends(get_current_user)):
     tutor = await Tutor.get(id)
     if not tutor:
         raise HTTPException(status_code=404, detail="Tutor not found")
     
-    await tutor.delete()
-    return {"message": "Tutor deleted"}
+    # Get all patients for this tutor
+    from app.models.patient import Patient
+    patients = await Patient.find(
+        {"$or": [{"tutor_id": tutor.id}, {"tutor2_id": tutor.id}]}
+    ).to_list()
+    
+    # Get consultations for these patients
+    from app.models.consultation import Consultation
+    patient_ids = [p.id for p in patients]
+    consultations = await Consultation.find(
+        {"patient_id": {"$in": patient_ids}}
+    ).sort("-date").to_list()
+    
+    # Calculate stats
+    total_appointments = len(consultations)
+    attended = len([c for c in consultations if c.status == "attended"])
+    no_shows = len([c for c in consultations if c.status == "no_show"])
+    
+    return {
+        "tutor": tutor,
+        "patients": patients,
+        "consultations": consultations,
+        "stats": {
+            "total_appointments": total_appointments,
+            "attended": attended,
+            "no_shows": no_shows,
+            "formatted_attendance": f"{attended}/{total_appointments}" if total_appointments > 0 else "0/0"
+        }
+    }
