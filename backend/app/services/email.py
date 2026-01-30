@@ -10,7 +10,7 @@ from app.core.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def send_email_background(to_email: str, subject: str, body: str, html_body: str = None):
+def send_email_sync(to_email: str, subject: str, body: str, html_body: str = None):
     print(f"DEBUG: Background Email Task Started. To: {email_to}")
     
     if not user or not password:

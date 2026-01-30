@@ -6,7 +6,7 @@ from app.models.patient import Patient
 from app.models.tutor import Tutor
 from app.routes.auth import get_current_user
 from app.services.file_service import save_upload_file
-from app.services.email import send_email_background
+from app.services.email import send_email_sync
 from pydantic import BaseModel
 from beanie import PydanticObjectId
 
@@ -106,12 +106,13 @@ Motivo: {new_con.reason}
             
             html_body = get_email_template("Reserva Confirmada", html_content)
             
-            print(f"DEBUG: Adding background task for {tutor.email}")
-            background_tasks.add_task(send_email_background, tutor.email, subject, body, html_body)
+            print(f"DEBUG: Sending email synchronously to {tutor.email}")
+            send_email_sync(tutor.email, subject, body, html_body)
         else:
             print(f"DEBUG: Tutor not found or no email. Tutor: {tutor}, Email: {tutor.email if tutor else 'None'}")
     except Exception as e:
         print(f"DEBUG: Error preparing email: {e}")
+        # Log but don't fail the request
         import traceback
         traceback.print_exc()
 
@@ -156,9 +157,17 @@ async def update_consultation(
                     </div>
                     <p>Si no realizaste este cambio, por favor contáctanos de inmediato.</p>
                     """
+from app.services.email import send_email_sync
+from pydantic import BaseModel
+from beanie import PydanticObjectId
+
+# ... (omitted)
+
+# In update_consultation:
                     html_body = get_email_template("Cita Reagendada", html_content)
                     
-                    background_tasks.add_task(send_email_background, tutor.email, subject, body, html_body)
+                    print(f"DEBUG: Sending reschedule email synchronously to {tutor.email}")
+                    send_email_sync(tutor.email, subject, body, html_body)
                 else:
                     print("DEBUG: Reschedule - Tutor/Email missing")
         except Exception as e:
