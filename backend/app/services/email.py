@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def send_email_sync(to_email: str, subject: str, body: str, html_body: str = None):
-    print(f"DEBUG: Background Email Task Started. To: {email_to}")
+    print(f"DEBUG: Background Email Task Started. To: {to_email}")
     
     if not user or not password:
         logger.error("Email credentials not set (MAIL_USERNAME/MAIL_PASSWORD). Cannot send email.")
