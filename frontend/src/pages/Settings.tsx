@@ -541,7 +541,6 @@ const Settings = () => {
                         <TabButton id="templates" icon={Mail} label="Plantillas de Correo" active={activeTab} set={setActiveTab} />
                         <TabButton id="schedule" icon={Calendar} label="Horarios" active={activeTab} set={setActiveTab} />
                         <TabButton id="users" icon={Users} label="Usuarios y Acceso" active={activeTab} set={setActiveTab} />
-                        <TabButton id="import" icon={Upload} label="Importar Datos" active={activeTab} set={setActiveTab} />
                     </nav>
                 </div>
 
@@ -552,7 +551,6 @@ const Settings = () => {
                     {activeTab === 'templates' && <TemplatesSettings />}
                     {activeTab === 'schedule' && <ScheduleSettings />}
                     {activeTab === 'users' && <UsersSettings currentUser={user} />}
-                    {activeTab === 'import' && <ImportSettings />}
                 </div>
             </div>
 

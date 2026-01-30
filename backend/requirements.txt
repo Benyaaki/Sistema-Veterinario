@@ -11,4 +11,4 @@ pyjwt
 reportlab
 email-validator
 python-jose[cryptography]
-pandas
+
