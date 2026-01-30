@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str
     MAIL_USERNAME: Optional[str] = None
     MAIL_PASSWORD: Optional[str] = None
+    MAIL_FROM: Optional[str] = None
+    MAIL_PORT: int = 465
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_STARTTLS: bool = False
+    MAIL_SSL_TLS: bool = True
+    USE_CREDENTIALS: bool = True
+
 
     class Config:
         env_file = ".env"

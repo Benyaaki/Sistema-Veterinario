@@ -12,32 +12,36 @@ class EmailTest(BaseModel):
 
 @router.post("/email")
 async def test_email(data: EmailTest):
-    params = {
-        "email": settings.MAIL_USERNAME,
-        "password": settings.MAIL_PASSWORD,
-        "server": "smtp.gmail.com",
-        "port": 465
-    }
+    user = settings.MAIL_USERNAME
+    password = settings.MAIL_PASSWORD
+    server_host = settings.MAIL_SERVER
+    port = settings.MAIL_PORT
     
     try:
-        if not params["email"] or not params["password"]:
+        if not user or not password:
             return {"status": "error", "message": "Faltan credenciales MAIL_USERNAME o MAIL_PASSWORD"}
 
         msg = MIMEMultipart('alternative')
-        msg['From'] = params["email"]
+        msg['From'] = settings.MAIL_FROM or user
         msg['To'] = data.to_email
         msg['Subject'] = "Prueba de Correo - PattyVet Debug"
         
-        body = "Este es un correo de prueba para verificar la configuración en Render."
+        body = f"Prueba desde {server_host}:{port} (SSL={settings.MAIL_SSL_TLS})."
         part1 = MIMEText(body, 'plain')
         msg.attach(part1)
 
-        server = smtplib.SMTP_SSL(params["server"], params["port"])
-        server.set_debuglevel(1) # Enable debug output
-        # server.starttls() # Not needed for SSL
-        server.login(params["email"], params["password"])
+        # SMTP Connection Logic
+        if settings.MAIL_SSL_TLS:
+            server = smtplib.SMTP_SSL(server_host, port)
+        else:
+            server = smtplib.SMTP(server_host, port)
+            if settings.MAIL_STARTTLS:
+                server.starttls()
+
+        server.set_debuglevel(1)
+        server.login(user, password)
         text = msg.as_string()
-        server.sendmail(params["email"], data.to_email, text)
+        server.sendmail(user, data.to_email, text)
         server.quit()
         
         return {"status": "success", "message": f"Correo enviado a {data.to_email}"}
