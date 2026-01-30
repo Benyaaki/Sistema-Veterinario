@@ -50,4 +50,7 @@ app.include_router(services.router, prefix="/api/v1/services", tags=["Services"]
 from app.routes import dashboard
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 
+from app.routes import debug
+app.include_router(debug.router, prefix="/api/v1/debug", tags=["Debug"])
+
 
