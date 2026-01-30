@@ -1,8 +1,6 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
 import logging
+import resend
 
 from app.core.config import settings
 
@@ -11,65 +9,37 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def send_email_sync(to_email: str, subject: str, body: str, html_body: str = None):
-    email_to = to_email
-    user = settings.MAIL_USERNAME
-    password = settings.MAIL_PASSWORD
-    server_host = settings.MAIL_SERVER
-    port = settings.MAIL_PORT
-
-    print(f"DEBUG: Background Email Task Started. To: {to_email}")
+    """
+    Sends an email using Resend API.
+    """
+    api_key = settings.RESEND_API_KEY
+    email_from = settings.MAIL_FROM or "PattyVet <onboarding@resend.dev>" # Fallback domain for testing
     
-    if not user or not password:
-        logger.error("Email credentials not set (MAIL_USERNAME/MAIL_PASSWORD). Cannot send email.")
-        print("DEBUG: Missing credentials")
+    if not api_key:
+        logger.error("RESEND_API_KEY is not set. Cannot send email.")
+        print("DEBUG: Missing RESEND_API_KEY")
         return
 
+    print(f"DEBUG: Attempting to send email via Resend to: {to_email}")
+    
+    resend.api_key = api_key
+
+    params = {
+        "from": email_from,
+        "to": [to_email],
+        "subject": subject,
+        "text": body,
+    }
+    
+    if html_body:
+        params["html"] = html_body
+
     try:
-        msg = MIMEMultipart('alternative')
-        msg['From'] = settings.MAIL_FROM or user
-        msg['To'] = email_to
-        msg['Subject'] = subject
-
-        # Attach plain text version
-        part1 = MIMEText(body, 'plain')
-        msg.attach(part1)
-
-        # Attach HTML version if provided
-        if html_body:
-            part2 = MIMEText(html_body, 'html')
-            msg.attach(part2)
-
-        print(f"DEBUG: Connecting to {server_host}:{port} (SSL={settings.MAIL_SSL_TLS})...")
-        
-        # SMTP Connection Logic with Timeout
-        timeout = 15 # seconds
-        # Force SSL if port is 465, regardless of flag (common misconfiguration)
-        if settings.MAIL_SSL_TLS or port == 465:
-            # Port 465 (usually)
-            print(f"DEBUG: connecting using SMTP_SSL (Port={port})")
-            server = smtplib.SMTP_SSL(server_host, port, timeout=timeout)
-        else:
-            # Port 587 (usually) with STARTTLS
-            print(f"DEBUG: connecting using SMTP (Port={port})")
-            server = smtplib.SMTP(server_host, port, timeout=timeout)
-            if settings.MAIL_STARTTLS:
-                print("DEBUG: starting TLS")
-                server.starttls()
-
-        print("DEBUG: Logging in...")
-        server.login(user, password)
-        
-        print(f"DEBUG: Sending email to {email_to}...")
-        text = msg.as_string()
-        server.sendmail(user, email_to, text)
-        
-        print("DEBUG: Quitting server...")
-        server.quit()
-        
-        logger.info(f"Email sent successfully to {to_email}")
-        print(f"DEBUG: SUCCESS - Email sent to {to_email}")
+        r = resend.Emails.send(params)
+        print(f"DEBUG: Resend API Response: {r}")
+        logger.info(f"Email sent successfully via Resend to {to_email}")
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
-        print(f"DEBUG: FAILED to send email. Error: {e}")
+        logger.error(f"Failed to send email via Resend: {e}")
+        print(f"DEBUG: FAILED to send email via Resend. Error: {e}")
         import traceback
         traceback.print_exc()

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = False
     MAIL_SSL_TLS: bool = True
     USE_CREDENTIALS: bool = True
+    RESEND_API_KEY: Optional[str] = None
 
 
     class Config:
