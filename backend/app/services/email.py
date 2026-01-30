@@ -11,6 +11,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def send_email_sync(to_email: str, subject: str, body: str, html_body: str = None):
+    email_to = to_email
+    user = settings.MAIL_USERNAME
+    password = settings.MAIL_PASSWORD
+    server_host = settings.MAIL_SERVER
+    port = settings.MAIL_PORT
+
     print(f"DEBUG: Background Email Task Started. To: {to_email}")
     
     if not user or not password:
