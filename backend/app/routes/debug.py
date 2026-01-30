@@ -16,7 +16,7 @@ async def test_email(data: EmailTest):
         "email": settings.MAIL_USERNAME,
         "password": settings.MAIL_PASSWORD,
         "server": "smtp.gmail.com",
-        "port": 587
+        "port": 465
     }
     
     try:
@@ -32,9 +32,9 @@ async def test_email(data: EmailTest):
         part1 = MIMEText(body, 'plain')
         msg.attach(part1)
 
-        server = smtplib.SMTP(params["server"], params["port"])
+        server = smtplib.SMTP_SSL(params["server"], params["port"])
         server.set_debuglevel(1) # Enable debug output
-        server.starttls()
+        # server.starttls() # Not needed for SSL
         server.login(params["email"], params["password"])
         text = msg.as_string()
         server.sendmail(params["email"], data.to_email, text)

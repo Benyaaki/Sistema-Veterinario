@@ -18,7 +18,7 @@ def send_email_background(to_email: str, subject: str, body: str, html_body: str
         "email": settings.MAIL_USERNAME,
         "password": settings.MAIL_PASSWORD,
         "server": "smtp.gmail.com",
-        "port": 587
+        "port": 465
     }
 
     if not params["email"] or not params["password"]:
@@ -40,8 +40,8 @@ def send_email_background(to_email: str, subject: str, body: str, html_body: str
             part2 = MIMEText(html_body, 'html')
             msg.attach(part2)
 
-        server = smtplib.SMTP(params["server"], params["port"])
-        server.starttls()
+        server = smtplib.SMTP_SSL(params["server"], params["port"])
+        # server.starttls() # Not needed for SSL
         server.login(params["email"], params["password"])
         text = msg.as_string()
         server.sendmail(params["email"], to_email, text)
