@@ -11,5 +11,5 @@ pyjwt
 reportlab
 email-validator
 python-jose[cryptography]
-resend
+sib-api-v3-sdk
 

@@ -1,7 +1,6 @@
-import os
 import logging
-import resend
-
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 from app.core.config import settings
 
 # Configure logging
@@ -10,36 +9,43 @@ logger = logging.getLogger(__name__)
 
 def send_email_sync(to_email: str, subject: str, body: str, html_body: str = None):
     """
-    Sends an email using Resend API.
+    Sends an email using Brevo (Sendinblue) API.
     """
-    api_key = settings.RESEND_API_KEY
-    email_from = settings.MAIL_FROM or "PattyVet <onboarding@resend.dev>" # Fallback domain for testing
-    
+    api_key = settings.BREVO_API_KEY
     if not api_key:
-        logger.error("RESEND_API_KEY is not set. Cannot send email.")
-        print("DEBUG: Missing RESEND_API_KEY")
+        logger.error("BREVO_API_KEY is not set. Cannot send email.")
+        print("DEBUG: Missing BREVO_API_KEY")
         return
 
-    print(f"DEBUG: Attempting to send email via Resend to: {to_email}")
-    
-    resend.api_key = api_key
+    # Configure API key authorization: api-key
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = api_key
 
-    params = {
-        "from": email_from,
-        "to": [to_email],
-        "subject": subject,
-        "text": body,
-    }
+    # Create an instance of the API class
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
     
-    if html_body:
-        params["html"] = html_body
+    # Define sender (must be verified in Brevo provided user uses that domain)
+    # Using the MAIL_FROM setting or a fallback. 
+    # Note: Brevo requires the sender email to be verified.
+    sender = {"name": "PattyVet", "email": settings.MAIL_FROM or settings.MAIL_USERNAME or "no-reply@pattyvet.cl"}
+    to = [{"email": to_email}]
+    
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=to,
+        sender=sender,
+        subject=subject,
+        html_content=html_body if html_body else body,
+        text_content=body
+    )
+
+    print(f"DEBUG: Attempting to send email via Brevo to: {to_email}")
 
     try:
-        r = resend.Emails.send(params)
-        print(f"DEBUG: Resend API Response: {r}")
-        logger.info(f"Email sent successfully via Resend to {to_email}")
-    except Exception as e:
-        logger.error(f"Failed to send email via Resend: {e}")
-        print(f"DEBUG: FAILED to send email via Resend. Error: {e}")
+        api_response = api_instance.send_transac_email(send_smtp_email)
+        print(f"DEBUG: Brevo API Response: {api_response}")
+        logger.info(f"Email sent successfully via Brevo to {to_email}")
+    except ApiException as e:
+        logger.error(f"Failed to send email via Brevo: {e}")
+        print(f"DEBUG: FAILED to send email via Brevo. Error: {e}")
         import traceback
         traceback.print_exc()
