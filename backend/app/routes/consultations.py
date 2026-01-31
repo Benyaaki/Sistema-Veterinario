@@ -192,6 +192,29 @@ async def get_patient_consultations(patient_id: str, user = Depends(get_current_
         raise HTTPException(status_code=400, detail="Invalid Patient ID")
         
     consultations = await Consultation.find(Consultation.patient_id == pid).sort("-date").to_list()
+    
+    # Enrich with full file records
+    from app.models.file_record import FileRecord
+    from beanie.operators import In
+
+    all_file_ids = []
+    for c in consultations:
+        all_file_ids.extend(c.file_ids)
+        
+    if all_file_ids:
+        files = await FileRecord.find(In(FileRecord.id, [PydanticObjectId(fid) for fid in all_file_ids])).to_list()
+        files_map = {str(f.id): f for f in files}
+        
+        result = []
+        for c in consultations:
+            c_dict = c.model_dump()
+            c_dict['files'] = []
+            for fid in c.file_ids:
+                if fid in files_map:
+                    c_dict['files'].append(files_map[fid])
+            result.append(c_dict)
+        return result
+
     return consultations
 
 @router.post("/{id}/files")

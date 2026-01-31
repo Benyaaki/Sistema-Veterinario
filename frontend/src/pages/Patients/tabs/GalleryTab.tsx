@@ -15,14 +15,27 @@ const GalleryTab = ({ patientId }: { patientId: string }) => {
             // Aggregate all file IDs with metadata
             const allImages: any[] = [];
             consultations.forEach((c: any) => {
-                if (c.file_ids && c.file_ids.length > 0) {
+                // New logic: Use populated files array
+                if (c.files && c.files.length > 0) {
+                    c.files.forEach((file: any) => {
+                        allImages.push({
+                            id: file._id || file.id,
+                            url: `${api.defaults.baseURL}/files/${file._id || file.id}`,
+                            displayDate: file.created_at || c.date, // Use upload date!
+                            consultationReason: c.reason,
+                            consultationId: c._id
+                        });
+                    });
+                }
+                // Fallback for old structure or if endpoint didn't enrich
+                else if (c.file_ids && c.file_ids.length > 0) {
                     c.file_ids.forEach((fileId: string) => {
                         allImages.push({
                             id: fileId,
-                            url: `${api.defaults.baseURL}/files/${fileId}`, // Assuming this endpoint serves the file
-                            consultationDate: c.date,
+                            url: `${api.defaults.baseURL}/files/${fileId}`,
+                            displayDate: c.date, // Fallback to consultation date
                             consultationReason: c.reason,
-                            consultationId: c._id // Needed for deletion key
+                            consultationId: c._id
                         });
                     });
                 }
@@ -96,7 +109,7 @@ const GalleryTab = ({ patientId }: { patientId: string }) => {
                         </button>
 
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <p className="text-white text-xs font-semibold truncate">{new Date(img.consultationDate).toLocaleDateString()}</p>
+                            <p className="text-white text-xs font-semibold truncate">{new Date(img.displayDate).toLocaleDateString()}</p>
                             <p className="text-gray-300 text-[10px] truncate">{img.consultationReason}</p>
                         </div>
                     </div>
