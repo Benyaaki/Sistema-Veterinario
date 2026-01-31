@@ -60,7 +60,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Usuario o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -143,15 +143,34 @@ async def forgot_password(data: ForgotPasswordRequest):
             subject="Restablecimiento de Contraseña - PattyVet",
             body=f"Hola {user.name},\n\nTu código de verificación para restablecer tu contraseña es: {code}\n\nEste código expira en 15 minutos.\n\nSi no solicitaste esto, ignora este correo.",
             html_body=f"""
-                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                    <h2 style="color: #2563EB;">Restablecimiento de Contraseña</h2>
-                    <p>Hola <strong>{user.name}</strong>,</p>
-                    <p>Has solicitado restablecer tu contraseña en PattyVet.</p>
-                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                        <span style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #111;">{code}</span>
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding: 40px 20px; text-align: center;">
+                    <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <div style="background-color: #2b7a78; padding: 30px 0;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">PattyVet</h1>
+                        </div>
+                        <div style="padding: 40px 30px; text-align: left;">
+                            <h2 style="color: #1a202c; font-size: 20px; font-weight: bold; margin-bottom: 20px;">Restablecimiento de Contraseña</h2>
+                            <p style="color: #4a5568; font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+                                Hola <strong>{user.name}</strong>,
+                            </p>
+                            <p style="color: #4a5568; font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
+                                Hemos recibido una solicitud para restablecer tu contraseña. Utiliza el siguiente código para completar el proceso:
+                            </p>
+                            
+                            <div style="background-color: #edf2f7; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 30px;">
+                                <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2d3748; display: block;">{code}</span>
+                            </div>
+
+                            <p style="color: #718096; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
+                                Este código expirará en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.
+                            </p>
+                        </div>
+                        <div style="background-color: #f7fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                            <p style="color: #a0aec0; font-size: 12px; margin: 0;">
+                                &copy; {datetime.now().year} PattyVet. Todos los derechos reservados.
+                            </p>
+                        </div>
                     </div>
-                    <p>Este código es válido por 15 minutos.</p>
-                    <p style="color: #666; font-size: 12px;">Si no solicitaste este cambio, por favor ignora este correo.</p>
                 </div>
             """
         )
