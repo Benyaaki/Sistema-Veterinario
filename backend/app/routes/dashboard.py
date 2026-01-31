@@ -40,11 +40,16 @@ async def get_today_consultations(user = Depends(get_current_user)):
     ).sort("date").to_list()
     
     result = []
+    result = []
     for c in consultations:
         patient = await Patient.get(c.patient_id)
+        
+        # Ensure UTC timezone is indicated
+        date_str = c.date.isoformat() + 'Z' if c.date.tzinfo is None else c.date.isoformat()
+
         result.append({
             "id": str(c.id),
-            "date": c.date,
+            "date": date_str,
             "reason": c.reason,
             "patient_name": patient.name if patient else "Desconocido",
             "patient_species": patient.species if patient else ""
@@ -64,9 +69,13 @@ async def get_upcoming_consultations(limit: int = 5, user = Depends(get_current_
     result = []
     for c in consultations:
         patient = await Patient.get(c.patient_id)
+        
+        # Ensure UTC timezone is indicated
+        date_str = c.date.isoformat() + 'Z' if c.date.tzinfo is None else c.date.isoformat()
+        
         result.append({
             "id": str(c.id),
-            "date": c.date,
+            "date": date_str,
             "reason": c.reason,
             "patient_name": patient.name if patient else "Desconocido",
             "patient_species": patient.species if patient else ""
