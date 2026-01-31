@@ -244,7 +244,7 @@ const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any)
 
 const ConsultationCard = ({ consultation, onDelete, defaultExpanded, onClearSelection }: any) => {
     const [expanded, setExpanded] = useState(defaultExpanded || false);
-    const [isEditing, setIsEditing] = useState(defaultExpanded || false); // Auto-edit if deep linked
+    const [isEditing, setIsEditing] = useState(false); // Should NOT auto-edit by default
     const formRef = useRef<HTMLDivElement>(null);
 
     // Update expanded whenever defaultExpanded changes (e.g. from props)

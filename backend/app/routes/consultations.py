@@ -208,6 +208,8 @@ async def get_patient_consultations(patient_id: str, user = Depends(get_current_
         result = []
         for c in consultations:
             c_dict = c.model_dump()
+            c_dict['_id'] = str(c.id) # Ensure _id is present for frontend compatibility
+            c_dict['id'] = str(c.id)
             c_dict['files'] = []
             for fid in c.file_ids:
                 if fid in files_map:
