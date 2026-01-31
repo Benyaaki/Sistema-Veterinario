@@ -51,8 +51,8 @@ const Login = () => {
                     style={{ backgroundImage: "url('/img/login_bg.png')" }}
                 ></div>
                 <div className="relative z-10 w-full flex flex-col justify-center items-center text-white p-12 text-center">
-                    <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/20">
-                        <span className="text-4xl font-bold">P</span>
+                    <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/20 p-4">
+                        <img src="/img/logo.png" alt="PattyVet Logo" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-4xl font-bold mb-4">Bienvenido a PattyVet</h2>
                     <p className="text-lg text-gray-200 max-w-md">
@@ -98,13 +98,10 @@ const Login = () => {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 block">Contraseña</label>
                             <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-primary transition-colors">
-                                    <Lock className="w-5 h-5" />
-                                </div>
                                 <input
                                     {...register('password')}
                                     type={showPassword ? "text" : "password"}
-                                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                                     placeholder="••••••••"
                                 />
                                 <button

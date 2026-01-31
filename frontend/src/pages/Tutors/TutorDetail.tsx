@@ -59,12 +59,20 @@ const TutorDetail = () => {
                                 <p className="text-gray-500 text-sm">Registrado el {new Date(tutor.created_at).toLocaleDateString()}</p>
                             </div>
                         </div>
-                        <Link
-                            to={`/tutors`}
-                            className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                        >
-                            Ver todos
-                        </Link>
+                        <div className="flex gap-2">
+                            <Link
+                                to={`/tutores/editar/${tutor._id || id}`}
+                                className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors flex items-center"
+                            >
+                                ✏️ Editar
+                            </Link>
+                            <Link
+                                to={`/tutors`}
+                                className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                            >
+                                Ver todos
+                            </Link>
+                        </div>
                     </div>
 
                     <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">

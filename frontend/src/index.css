@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide native password reveal on Edge/IE */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
+
 html,
 body {
     height: 100%;
