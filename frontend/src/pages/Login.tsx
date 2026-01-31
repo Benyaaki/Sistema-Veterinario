@@ -48,7 +48,7 @@ const Login = () => {
             <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900">
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-60"
-                    style={{ backgroundImage: "url('/img/login_bg.png')" }}
+                    style={{ backgroundImage: "url('/img/logo_bg.png')" }}
                 ></div>
                 <div className="relative z-10 w-full flex flex-col justify-center items-center text-white p-12 text-center">
                     <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/20 p-4">
