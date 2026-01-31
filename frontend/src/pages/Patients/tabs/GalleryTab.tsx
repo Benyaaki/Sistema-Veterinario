@@ -18,13 +18,16 @@ const GalleryTab = ({ patientId }: { patientId: string }) => {
                 // New logic: Use populated files array
                 if (c.files && c.files.length > 0) {
                     c.files.forEach((file: any) => {
-                        allImages.push({
-                            id: file._id || file.id,
-                            url: `${api.defaults.baseURL}/files/${file._id || file.id}`,
-                            displayDate: file.created_at || c.date, // Use upload date!
-                            consultationReason: c.reason,
-                            consultationId: c._id
-                        });
+                        // Only show images in gallery
+                        if (file.mime_type && file.mime_type.startsWith('image/')) {
+                            allImages.push({
+                                id: file._id || file.id,
+                                url: `${api.defaults.baseURL}/files/${file._id || file.id}`,
+                                displayDate: file.created_at || c.date, // Use upload date!
+                                consultationReason: c.reason,
+                                consultationId: c._id
+                            });
+                        }
                     });
                 }
                 // Fallback for old structure or if endpoint didn't enrich
