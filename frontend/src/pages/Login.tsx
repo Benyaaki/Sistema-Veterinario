@@ -5,46 +5,116 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, AlertCircle, ArrowRight, Eye, EyeOff, Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 
-const schema = z.object({
+// --- Validation Schemas ---
+const loginSchema = z.object({
     email: z.string().email("Email inválido"),
     password: z.string().min(1, "Contraseña requerida"),
 });
 
-type FormData = z.infer<typeof schema>;
+const forgotSchema = z.object({
+    email: z.string().email("Email inválido"),
+});
+
+const verifySchema = z.object({
+    code: z.string().length(6, "El código debe tener 6 caracteres"),
+});
+
+const resetSchema = z.object({
+    password: z.string().min(6, "Mínimo 6 caracteres"),
+    confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+type ForgotForm = z.infer<typeof forgotSchema>;
+type VerifyForm = z.infer<typeof verifySchema>;
+type ResetForm = z.infer<typeof resetSchema>;
+
+type ViewState = 'login' | 'forgot' | 'verify' | 'reset' | 'success';
 
 const Login = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
-    const [error, setError] = useState<string | null>(null);
+    const [view, setView] = useState<ViewState>('login');
+    const [emailForReset, setEmailForReset] = useState('');
+    const [resetCode, setResetCode] = useState('');
+    const [globalError, setGlobalError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
-        resolver: zodResolver(schema),
-    });
 
-    const onSubmit = async (data: FormData) => {
+    // --- Forms ---
+    const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
+    const forgotForm = useForm<ForgotForm>({ resolver: zodResolver(forgotSchema) });
+    const verifyForm = useForm<VerifyForm>({ resolver: zodResolver(verifySchema) });
+    const resetForm = useForm<ResetForm>({ resolver: zodResolver(resetSchema) });
+
+    // --- Handlers ---
+    const onLoginSubmit = async (data: LoginForm) => {
         try {
-            setError(null);
+            setGlobalError(null);
             const formData = new FormData();
             formData.append('username', data.email);
             formData.append('password', data.password);
 
             const response = await api.post('/auth/login', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' } // OAuth2 expects form data
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             await login(response.data.access_token);
             navigate('/dashboard');
         } catch (err: any) {
             console.error("Login error", err);
-            setError(err.response?.data?.detail || "Error al iniciar sesión");
+            setGlobalError(err.response?.data?.detail || "Error al iniciar sesión");
         }
+    };
+
+    const onForgotSubmit = async (data: ForgotForm) => {
+        try {
+            setGlobalError(null);
+            await api.post('/auth/forgot-password', data);
+            setEmailForReset(data.email);
+            setView('verify');
+        } catch (err: any) {
+            setGlobalError(err.response?.data?.detail || "Error al enviar código");
+        }
+    };
+
+    const onVerifySubmit = async (data: VerifyForm) => {
+        try {
+            setGlobalError(null);
+            await api.post('/auth/verify-reset-code', { email: emailForReset, code: data.code });
+            setResetCode(data.code);
+            setView('reset');
+        } catch (err: any) {
+            setGlobalError(err.response?.data?.detail || "Código inválido");
+        }
+    };
+
+    const onResetSubmit = async (data: ResetForm) => {
+        try {
+            setGlobalError(null);
+            await api.post('/auth/reset-password', {
+                email: emailForReset,
+                code: resetCode,
+                new_password: data.password
+            });
+            setView('success');
+        } catch (err: any) {
+            setGlobalError(err.response?.data?.detail || "Error al restablecer contraseña");
+        }
+    };
+
+    const goBack = () => {
+        setGlobalError(null);
+        setView('login');
     };
 
     return (
         <div className="min-h-screen flex bg-white">
-            {/* Left Side - Image Placeholder / Branding */}
+            {/* Left Side - Branding */}
             <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900">
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-60"
@@ -61,79 +131,222 @@ const Login = () => {
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
+            {/* Right Side - Forms */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
                 <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-center mb-8 lg:text-left">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Iniciar Sesión</h1>
+
+                    {/* Header based on View */}
+                    <div className="mb-8">
+                        {view !== 'login' && view !== 'success' && (
+                            <button onClick={goBack} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4 text-sm font-medium">
+                                <ArrowLeft className="w-4 h-4" /> Volver
+                            </button>
+                        )}
+
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            {view === 'login' && "Iniciar Sesión"}
+                            {view === 'forgot' && "Recuperar Contraseña"}
+                            {view === 'verify' && "Verificar Código"}
+                            {view === 'reset' && "Nueva Contraseña"}
+                            {view === 'success' && "¡Contraseña Actualizada!"}
+                        </h1>
                         <p className="text-gray-500">
-                            Ingresa tus credenciales para acceder al panel.
+                            {view === 'login' && "Ingresa tus credenciales para acceder al panel."}
+                            {view === 'forgot' && "Ingresa tu email para recibir un código de verificación."}
+                            {view === 'verify' && `Hemos enviado un código a ${emailForReset}. Ingresa los 6 dígitos.`}
+                            {view === 'reset' && "Crea una nueva contraseña segura para tu cuenta."}
+                            {view === 'success' && "Tu contraseña ha sido restablecida exitosamente."}
                         </p>
                     </div>
 
-                    {error && (
+                    {globalError && (
                         <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{error}</span>
+                            <span className="text-sm">{globalError}</span>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 block">Email</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-primary transition-colors">
-                                    <Mail className="w-5 h-5" />
+                    {/* LOGIN FORM */}
+                    {view === 'login' && (
+                        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Email</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <Mail className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        {...loginForm.register('email')}
+                                        type="email"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        placeholder="nombre@ejemplo.com"
+                                    />
                                 </div>
-                                <input
-                                    {...register('email')}
-                                    type="email"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                    placeholder="nombre@ejemplo.com"
-                                />
+                                {loginForm.formState.errors.email && <p className="text-red-500 text-xs">{loginForm.formState.errors.email.message}</p>}
                             </div>
-                            {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 block">Contraseña</label>
-                            <div className="relative group">
-                                <input
-                                    {...register('password')}
-                                    type={showPassword ? "text" : "password"}
-                                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                    placeholder="••••••••"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Contraseña</label>
+                                <div className="relative group">
+                                    <input
+                                        {...loginForm.register('password')}
+                                        type={showPassword ? "text" : "password"}
+                                        className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                                {loginForm.formState.errors.password && <p className="text-red-500 text-xs">{loginForm.formState.errors.password.message}</p>}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                                <label className="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer">
+                                    <input type="checkbox" className="mr-2 rounded border-gray-300 text-primary focus:ring-primary" />
+                                    Recordarme
+                                </label>
+                                <button type="button" onClick={() => setView('forgot')} className="text-primary hover:underline font-medium text-left sm:text-right">
+                                    ¿Olvidaste tu contraseña?
                                 </button>
                             </div>
-                            {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+
+                            <button
+                                type="submit"
+                                disabled={loginForm.formState.isSubmitting}
+                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
+                            >
+                                {loginForm.formState.isSubmitting ? 'Ingresando...' : 'Acceder al Sistema'}
+                                {!loginForm.formState.isSubmitting && <ArrowRight className="w-5 h-5" />}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* FORGOT PASSWORD FORM */}
+                    {view === 'forgot' && (
+                        <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Email Registrado</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <Mail className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        {...forgotForm.register('email')}
+                                        type="email"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        placeholder="nombre@ejemplo.com"
+                                    />
+                                </div>
+                                {forgotForm.formState.errors.email && <p className="text-red-500 text-xs">{forgotForm.formState.errors.email.message}</p>}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={forgotForm.formState.isSubmitting}
+                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {forgotForm.formState.isSubmitting ? 'Enviando...' : 'Enviar Código'}
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </form>
+                    )}
+
+                    {/* VERIFY CODE FORM */}
+                    {view === 'verify' && (
+                        <form onSubmit={verifyForm.handleSubmit(onVerifySubmit)} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Código de Verificación</label>
+                                <input
+                                    {...verifyForm.register('code')}
+                                    type="text"
+                                    maxLength={6}
+                                    className="w-full text-center tracking-[1em] font-mono text-lg py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all uppercase"
+                                    placeholder="ERROR"
+                                />
+                                {verifyForm.formState.errors.code && <p className="text-red-500 text-xs text-center">{verifyForm.formState.errors.code.message}</p>}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={verifyForm.formState.isSubmitting}
+                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {verifyForm.formState.isSubmitting ? 'Verificando...' : 'Verificar Código'}
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </form>
+                    )}
+
+                    {/* RESET PASSWORD FORM */}
+                    {view === 'reset' && (
+                        <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Nueva Contraseña</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <Lock className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        {...resetForm.register('password')}
+                                        type="password"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        placeholder="Min. 6 caracteres"
+                                    />
+                                </div>
+                                {resetForm.formState.errors.password && <p className="text-red-500 text-xs">{resetForm.formState.errors.password.message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 block">Confirmar Contraseña</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <Lock className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        {...resetForm.register('confirmPassword')}
+                                        type="password"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                        placeholder="Repite la contraseña"
+                                    />
+                                </div>
+                                {resetForm.formState.errors.confirmPassword && <p className="text-red-500 text-xs">{resetForm.formState.errors.confirmPassword.message}</p>}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={resetForm.formState.isSubmitting}
+                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {resetForm.formState.isSubmitting ? 'Guardando...' : 'Cambiar Contraseña'}
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </form>
+                    )}
+
+                    {/* SUCCESS VIEW */}
+                    {view === 'success' && (
+                        <div className="text-center py-8">
+                            <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+                                <CheckCircle className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">¡Todo listo!</h3>
+                            <p className="text-gray-500 mb-8">
+                                Tu contraseña ha sido actualizada correctamente. Ahora puedes iniciar sesión con tus nuevas credenciales.
+                            </p>
+                            <button
+                                onClick={() => setView('login')}
+                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30"
+                            >
+                                Volver al Inicio de Sesión
+                            </button>
                         </div>
+                    )}
 
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer">
-                                <input type="checkbox" className="mr-2 rounded border-gray-300 text-primary focus:ring-primary" />
-                                Recordarme
-                            </label>
-                            <a href="#" className="text-primary hover:underline font-medium">¿Olvidaste tu contraseña?</a>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
-                        >
-                            {isSubmitting ? 'Ingresando...' : 'Acceder al Sistema'}
-                            {!isSubmitting && <ArrowRight className="w-5 h-5" />}
-                        </button>
-
-
-                    </form>
                 </div>
             </div>
         </div>

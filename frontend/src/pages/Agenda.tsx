@@ -137,9 +137,9 @@ const Agenda = () => {
     };
 
     return (
-        <div className="flex h-[calc(100vh-100px)] space-x-6 relative">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-100px)] gap-6 relative p-4 lg:p-0">
             {/* Calendar View */}
-            <div className="flex-1 bg-white rounded-xl shadow-sm border p-6 flex flex-col">
+            <div className="flex-1 bg-white rounded-xl shadow-sm border p-4 lg:p-6 flex flex-col min-h-[500px]">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-gray-900 capitalize">
                         {currentDate.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
@@ -151,69 +151,71 @@ const Agenda = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden flex-1">
-                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-                        <div key={d} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase">
-                            {d}
-                        </div>
-                    ))}
+                <div className="flex-1 overflow-x-auto">
+                    <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden min-w-[800px] h-full">
+                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+                            <div key={d} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase">
+                                {d}
+                            </div>
+                        ))}
 
-                    {emptyStartDays.map((_, i) => (
-                        <div key={`empty - ${i} `} className="bg-white min-h-[100px]" />
-                    ))}
+                        {emptyStartDays.map((_, i) => (
+                            <div key={`empty - ${i} `} className="bg-white min-h-[100px]" />
+                        ))}
 
-                    {days.map(day => {
-                        const dayEvents = getEventsForDay(day);
-                        const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentDate.getMonth();
-                        const isToday = new Date().getDate() === day && new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear();
+                        {days.map(day => {
+                            const dayEvents = getEventsForDay(day);
+                            const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === currentDate.getMonth();
+                            const isToday = new Date().getDate() === day && new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear();
 
-                        return (
-                            <div
-                                key={day}
-                                onClick={() => setSelectedDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))}
-                                className={`min-h-[120px] border rounded-lg flex flex-col items-start justify-start p-2 cursor-pointer transition-all
+                            return (
+                                <div
+                                    key={day}
+                                    onClick={() => setSelectedDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))}
+                                    className={`min-h-[120px] border rounded-lg flex flex-col items-start justify-start p-2 cursor-pointer transition-all
                                     ${isSelected
-                                        ? 'bg-primary/10 border-primary shadow-sm'
-                                        : 'hover:bg-gray-50 border-transparent bg-white'
-                                    }
+                                            ? 'bg-primary/10 border-primary shadow-sm'
+                                            : 'hover:bg-gray-50 border-transparent bg-white'
+                                        }
 `}
-                            >
-                                <div className="w-full flex justify-between items-start mb-1">
-                                    <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
+                                >
+                                    <div className="w-full flex justify-between items-start mb-1">
+                                        <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
                                         ${isToday ? 'bg-secondary text-white' : (isSelected ? 'bg-primary text-white' : 'text-gray-700')}
                                     `}>
-                                        {day}
-                                    </span>
+                                            {day}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1 w-full overflow-y-auto max-h-[100px] scrollbar-hide">
+                                        {dayEvents.map(ev => (
+                                            <button
+                                                key={ev.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedEvents(ev);
+                                                    setIsRescheduling(false);
+                                                    const d = new Date(ev.start);
+                                                    setRescheduleData({
+                                                        date: d.toISOString().split('T')[0],
+                                                        time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                                                    });
+                                                }}
+                                                className="block w-full text-left text-[10px] bg-white border border-brand-accent/30 text-gray-700 px-1.5 py-1 rounded truncate hover:bg-brand-surface shadow-sm focus:outline-none"
+                                                title={`${new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${ev.title}`}
+                                            >
+                                                <span className="font-bold text-primary">{new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span> {ev.title}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="space-y-1 w-full overflow-y-auto max-h-[100px] scrollbar-hide">
-                                    {dayEvents.map(ev => (
-                                        <button
-                                            key={ev.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedEvents(ev);
-                                                setIsRescheduling(false);
-                                                const d = new Date(ev.start);
-                                                setRescheduleData({
-                                                    date: d.toISOString().split('T')[0],
-                                                    time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-                                                });
-                                            }}
-                                            className="block w-full text-left text-[10px] bg-white border border-brand-accent/30 text-gray-700 px-1.5 py-1 rounded truncate hover:bg-brand-surface shadow-sm focus:outline-none"
-                                            title={`${new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${ev.title}`}
-                                        >
-                                            <span className="font-bold text-primary">{new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span> {ev.title}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
             {/* Sidebar Details */}
-            <div className="w-80 bg-white rounded-xl shadow-sm border p-6 flex flex-col">
+            <div className="w-full lg:w-80 bg-white rounded-xl shadow-sm border p-6 flex flex-col">
                 <h3 className="font-bold text-gray-900 mb-1 capitalize">
                     {selectedDate.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </h3>

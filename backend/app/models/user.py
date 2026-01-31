@@ -9,6 +9,8 @@ class User(Document):
     role: str = "admin"
     signature_file_id: Optional[str] = None
     created_at: datetime = datetime.utcnow()
+    reset_token: Optional[str] = None
+    reset_token_expiry: Optional[datetime] = None
 
     class Settings:
         name = "users"

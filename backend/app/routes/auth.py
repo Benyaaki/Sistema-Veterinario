@@ -97,3 +97,102 @@ async def delete_user(id: str, current_user: Annotated[User, Depends(get_current
     
     await user.delete()
     return {"message": "User deleted"}
+
+# Password Reset Flow
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    user = await User.find_one(User.email == data.email)
+    if not user:
+        # Don't reveal if user exists or not for security, but for UX maybe we want to say "Email sent if registered"
+        # However, for this project context, accurate feedback might be preferred by the user owner.
+        # But standard practice is to return 200 OK.
+        # Let's return 404 for now as per user instruction "siempre y cuando si haya estado registrada"
+        raise HTTPException(status_code=404, detail="Email no registrado")
+
+    import secrets
+    from datetime import datetime, timedelta
+    
+    # Generate 6-digit code
+    code = secrets.token_hex(3).upper() # 6 chars
+    
+    user.reset_token = code
+    user.reset_token_expiry = datetime.utcnow() + timedelta(minutes=15)
+    await user.save()
+    
+    # Send Email
+    try:
+        from app.services.email import send_email_sync
+        # Running sync function in async context properly? 
+        # Ideally should use run_in_executor but for low traffic it's ok-ish or just call it.
+        # It's blocking but simple.
+        send_email_sync(
+            to_email=user.email,
+            subject="Restablecimiento de Contraseña - PattyVet",
+            body=f"Hola {user.name},\n\nTu código de verificación para restablecer tu contraseña es: {code}\n\nEste código expira en 15 minutos.\n\nSi no solicitaste esto, ignora este correo.",
+            html_body=f"""
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #2563EB;">Restablecimiento de Contraseña</h2>
+                    <p>Hola <strong>{user.name}</strong>,</p>
+                    <p>Has solicitado restablecer tu contraseña en PattyVet.</p>
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                        <span style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #111;">{code}</span>
+                    </div>
+                    <p>Este código es válido por 15 minutos.</p>
+                    <p style="color: #666; font-size: 12px;">Si no solicitaste este cambio, por favor ignora este correo.</p>
+                </div>
+            """
+        )
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        raise HTTPException(status_code=500, detail="Error al enviar el correo")
+        
+    return {"message": "Código de verificación enviado"}
+
+@router.post("/verify-reset-code")
+async def verify_reset_code(data: VerifyCodeRequest):
+    from datetime import datetime
+    user = await User.find_one(User.email == data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if not user.reset_token or user.reset_token != data.code:
+        raise HTTPException(status_code=400, detail="Código inválido")
+        
+    if not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="El código ha expirado")
+        
+    return {"message": "Código válido"}
+
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    from datetime import datetime
+    user = await User.find_one(User.email == data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if not user.reset_token or user.reset_token != data.code:
+        raise HTTPException(status_code=400, detail="Código inválido")
+        
+    if not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="El código ha expirado")
+    
+    # Reset Password
+    user.password_hash = pwd_context.hash(data.new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
+    await user.save()
+    
+    return {"message": "Contraseña actualizada exitosamente"}
