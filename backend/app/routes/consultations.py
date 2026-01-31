@@ -125,6 +125,7 @@ async def update_consultation(
     id: str, 
     data: ConsultationUpdate, 
     background_tasks: BackgroundTasks,
+    notify_tutor: bool = False,
     user = Depends(get_current_user)
 ):
     con = await Consultation.get(id)
@@ -135,8 +136,8 @@ async def update_consultation(
     update_data = data.model_dump(exclude_unset=True)
     await con.set(update_data)
     
-    # Check if date was updated and is different
-    if data.date and data.date != old_date:
+    # Check if date was updated and is different AND notification is requested
+    if notify_tutor and data.date and data.date != old_date:
         try:
             patient = await Patient.get(con.patient_id)
             if patient:

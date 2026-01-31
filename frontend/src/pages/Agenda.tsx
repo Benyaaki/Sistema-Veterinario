@@ -108,7 +108,7 @@ const Agenda = () => {
         e.preventDefault();
         try {
             const finalDate = new Date(`${rescheduleData.date}T${rescheduleData.time}:00`);
-            await api.put(`/consultations/${selectedEvents.id}`, {
+            await api.put(`/consultations/${selectedEvents.id}?notify_tutor=true`, {
                 date: finalDate.toISOString()
             });
 

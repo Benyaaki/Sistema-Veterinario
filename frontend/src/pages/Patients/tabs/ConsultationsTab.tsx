@@ -74,58 +74,17 @@ const getStatusLabel = (status: string) => {
     }
 };
 
-const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any) => {
-    const { register, handleSubmit, reset, setValue, watch } = useForm({
-        defaultValues: consultation ? {
-            ...consultation,
-            date: consultation.date ? consultation.date.split('T')[0] : ''
-        } : {
-            status: 'scheduled',
-            date: new Date().toISOString().split('T')[0]
-        }
-    });
-    const currentStatus = watch('status');
-    const [saving, setSaving] = useState(false);
-    const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel, className }: any) => {
+    // ... hooks ...
 
-    const onSubmit = async (data: any) => {
-        setSaving(true);
-        try {
-            let consultationId = consultation?._id;
+    // ... submit logic ...
 
-            if (consultation) {
-                await api.put(`/consultations/${consultation._id}`, data);
-                alert('Consulta actualizada');
-            } else {
-                const res = await api.post('/consultations', { ...data, patient_id: patientId });
-                consultationId = res.data._id;
-                alert('Consulta creada');
-            }
-
-            // Upload files if any
-            if (selectedFiles && selectedFiles.length > 0 && consultationId) {
-                const filePromises = Array.from(selectedFiles).map(file => {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    return api.post(`/consultations/${consultationId}/files`, formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-                });
-                await Promise.all(filePromises);
-            }
-
-            reset();
-            onSuccess();
-        } catch (error) {
-            console.error(error);
-            alert('Error al guardar consulta o archivos');
-        } finally {
-            setSaving(false);
-        }
-    };
+    const containerClass = className !== undefined
+        ? className
+        : "bg-gray-50 p-6 rounded-lg border mb-6";
 
     return (
-        <div className="bg-gray-50 p-6 rounded-lg border mb-6">
+        <div className={containerClass}>
             <div className="flex justify-between mb-4">
                 <h4 className="font-bold text-gray-900">{consultation ? 'Editar Consulta' : 'Registrar Consulta'}</h4>
                 {onCancel && (
@@ -156,8 +115,8 @@ const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any)
                             type="button"
                             onClick={() => setValue('status', 'attended')}
                             className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all flex items-center justify-center space-x-2 ${currentStatus === 'attended'
-                                    ? 'bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500'
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             <span className="w-2 h-2 rounded-full bg-green-500"></span>
@@ -168,8 +127,8 @@ const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any)
                             type="button"
                             onClick={() => setValue('status', 'no_show')}
                             className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all flex items-center justify-center space-x-2 ${currentStatus === 'no_show'
-                                    ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             <span className="w-2 h-2 rounded-full bg-red-500"></span>
@@ -180,8 +139,8 @@ const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any)
                             type="button"
                             onClick={() => setValue('status', 'scheduled')}
                             className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all flex items-center justify-center space-x-2 ${currentStatus === 'scheduled' || !currentStatus
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
@@ -267,11 +226,12 @@ const ConsultationCard = ({ consultation, onDelete, defaultExpanded, onClearSele
 
     if (isEditing) {
         return (
-            <div ref={formRef} className="bg-white border rounded-lg shadow-md overflow-hidden">
+            <div ref={formRef} className="bg-gray-50 border rounded-lg shadow-md overflow-hidden mb-4">
                 <ConsultationForm
                     consultation={consultation}
                     onSuccess={() => { setIsEditing(false); onDelete(); if (onClearSelection) onClearSelection(); }}
                     onCancel={() => { setIsEditing(false); if (onClearSelection) onClearSelection(); }}
+                    className="" // Clean style for embedded
                 />
             </div>
         );
