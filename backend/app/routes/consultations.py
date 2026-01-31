@@ -80,7 +80,6 @@ async def create_consultation(
                     patient_name=patient.name,
                     date=date_str,
                     reason=new_con.reason,
-                    reason=new_con.reason,
                     notes=f"""<br><br><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px;"><strong>Indicaciones:</strong><br>{new_con.notes}</div>""" if new_con.notes else ""
                 ).replace('\n', '<br>') # Simple newline to nice HTML conversion
                 
