@@ -113,240 +113,242 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex bg-white">
-            {/* Left Side - Branding */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900">
-                <div
-                    className="absolute inset-0 bg-cover bg-center opacity-60"
-                    style={{ backgroundImage: "url('/img/logo_bg.png')" }}
-                ></div>
-                <div className="relative z-10 w-full flex flex-col justify-center items-center text-white p-12 text-center">
-                    <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/20 p-4">
-                        <img src="/img/logo.png" alt="PattyVet Logo" className="w-full h-full object-contain" />
+        <div
+            className="min-h-screen flex items-center justify-end relative"
+            style={{
+                backgroundImage: "url('/img/logo_bg.png')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+            }}
+        >
+            {/* Content Container */}
+            <div className="relative z-10 w-full h-full px-16 py-12 flex items-center justify-between">
+
+                {/* Left Side - Logo Only */}
+                <div className="flex-1 flex items-center justify-center -ml-48">
+                    <div className="bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-2xl border border-white/30 p-8">
+                        <img src="/img/logo_nombre.png" alt="CalFer" className="w-56 h-auto object-contain drop-shadow-lg" />
                     </div>
-                    <h2 className="text-4xl font-bold mb-4">Bienvenido a PattyVet</h2>
-                    <p className="text-lg text-gray-200 max-w-md">
-                        Gestión veterinaria profesional, simplificada para el cuidado de tus pacientes.
-                    </p>
                 </div>
-            </div>
 
-            {/* Right Side - Forms */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
-                <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                {/* Right Side - Forms */}
+                <div className="w-full max-w-md">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl border border-gray-100">
 
-                    {/* Header based on View */}
-                    <div className="mb-8">
-                        {view !== 'login' && view !== 'success' && (
-                            <button onClick={goBack} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4 text-sm font-medium">
-                                <ArrowLeft className="w-4 h-4" /> Volver
-                            </button>
+                        {/* Header based on View */}
+                        <div className="mb-8">
+                            {view !== 'login' && view !== 'success' && (
+                                <button onClick={goBack} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4 text-sm font-medium">
+                                    <ArrowLeft className="w-4 h-4" /> Volver
+                                </button>
+                            )}
+
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                {view === 'login' && "Iniciar Sesión"}
+                                {view === 'forgot' && "Recuperar Contraseña"}
+                                {view === 'verify' && "Verificar Código"}
+                                {view === 'reset' && "Nueva Contraseña"}
+                                {view === 'success' && "¡Contraseña Actualizada!"}
+                            </h1>
+                            <p className="text-gray-500">
+                                {view === 'login' && "Ingresa tus credenciales para acceder al panel."}
+                                {view === 'forgot' && "Ingresa tu email para recibir un código de verificación."}
+                                {view === 'verify' && `Hemos enviado un código a ${emailForReset}. Ingresa los 6 dígitos.`}
+                                {view === 'reset' && "Crea una nueva contraseña segura para tu cuenta."}
+                                {view === 'success' && "Tu contraseña ha sido restablecida exitosamente."}
+                            </p>
+                        </div>
+
+                        {globalError && (
+                            <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm">{globalError}</span>
+                            </div>
                         )}
 
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            {view === 'login' && "Iniciar Sesión"}
-                            {view === 'forgot' && "Recuperar Contraseña"}
-                            {view === 'verify' && "Verificar Código"}
-                            {view === 'reset' && "Nueva Contraseña"}
-                            {view === 'success' && "¡Contraseña Actualizada!"}
-                        </h1>
-                        <p className="text-gray-500">
-                            {view === 'login' && "Ingresa tus credenciales para acceder al panel."}
-                            {view === 'forgot' && "Ingresa tu email para recibir un código de verificación."}
-                            {view === 'verify' && `Hemos enviado un código a ${emailForReset}. Ingresa los 6 dígitos.`}
-                            {view === 'reset' && "Crea una nueva contraseña segura para tu cuenta."}
-                            {view === 'success' && "Tu contraseña ha sido restablecida exitosamente."}
-                        </p>
-                    </div>
-
-                    {globalError && (
-                        <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 flex items-start gap-3">
-                            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{globalError}</span>
-                        </div>
-                    )}
-
-                    {/* LOGIN FORM */}
-                    {view === 'login' && (
-                        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Email</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                        <Mail className="w-5 h-5" />
+                        {/* LOGIN FORM */}
+                        {view === 'login' && (
+                            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Email</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <Mail className="w-5 h-5" />
+                                        </div>
+                                        <input
+                                            {...loginForm.register('email')}
+                                            type="email"
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            placeholder="nombre@ejemplo.com"
+                                        />
                                     </div>
-                                    <input
-                                        {...loginForm.register('email')}
-                                        type="email"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="nombre@ejemplo.com"
-                                    />
+                                    {loginForm.formState.errors.email && <p className="text-red-500 text-xs">{loginForm.formState.errors.email.message}</p>}
                                 </div>
-                                {loginForm.formState.errors.email && <p className="text-red-500 text-xs">{loginForm.formState.errors.email.message}</p>}
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Contraseña</label>
-                                <div className="relative group">
-                                    <input
-                                        {...loginForm.register('password')}
-                                        type={showPassword ? "text" : "password"}
-                                        className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="••••••••"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-                                    >
-                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Contraseña</label>
+                                    <div className="relative group">
+                                        <input
+                                            {...loginForm.register('password')}
+                                            type={showPassword ? "text" : "password"}
+                                            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            placeholder="••••••••"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                    {loginForm.formState.errors.password && <p className="text-red-500 text-xs">{loginForm.formState.errors.password.message}</p>}
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                                    <label className="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer">
+                                        <input type="checkbox" className="mr-2 rounded border-gray-300 text-primary focus:ring-primary" />
+                                        Recordarme
+                                    </label>
+                                    <button type="button" onClick={() => setView('forgot')} className="text-primary hover:underline font-medium text-left sm:text-right">
+                                        ¿Olvidaste tu contraseña?
                                     </button>
                                 </div>
-                                {loginForm.formState.errors.password && <p className="text-red-500 text-xs">{loginForm.formState.errors.password.message}</p>}
-                            </div>
 
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
-                                <label className="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer">
-                                    <input type="checkbox" className="mr-2 rounded border-gray-300 text-primary focus:ring-primary" />
-                                    Recordarme
-                                </label>
-                                <button type="button" onClick={() => setView('forgot')} className="text-primary hover:underline font-medium text-left sm:text-right">
-                                    ¿Olvidaste tu contraseña?
+                                <button
+                                    type="submit"
+                                    disabled={loginForm.formState.isSubmitting}
+                                    className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
+                                >
+                                    {loginForm.formState.isSubmitting ? 'Ingresando...' : 'Acceder al Sistema'}
+                                    {!loginForm.formState.isSubmitting && <ArrowRight className="w-5 h-5" />}
+                                </button>
+                            </form>
+                        )}
+
+                        {/* FORGOT PASSWORD FORM */}
+                        {view === 'forgot' && (
+                            <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Email Registrado</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <Mail className="w-5 h-5" />
+                                        </div>
+                                        <input
+                                            {...forgotForm.register('email')}
+                                            type="email"
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            placeholder="nombre@ejemplo.com"
+                                        />
+                                    </div>
+                                    {forgotForm.formState.errors.email && <p className="text-red-500 text-xs">{forgotForm.formState.errors.email.message}</p>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={forgotForm.formState.isSubmitting}
+                                    className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {forgotForm.formState.isSubmitting ? 'Enviando...' : 'Enviar Código'}
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </form>
+                        )}
+
+                        {/* VERIFY CODE FORM */}
+                        {view === 'verify' && (
+                            <form onSubmit={verifyForm.handleSubmit(onVerifySubmit)} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Código de Verificación</label>
+                                    <input
+                                        {...verifyForm.register('code')}
+                                        type="text"
+                                        maxLength={6}
+                                        className="w-full text-center tracking-[1em] font-mono text-lg py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all uppercase"
+                                        placeholder="ERROR"
+                                    />
+                                    {verifyForm.formState.errors.code && <p className="text-red-500 text-xs text-center">{verifyForm.formState.errors.code.message}</p>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={verifyForm.formState.isSubmitting}
+                                    className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {verifyForm.formState.isSubmitting ? 'Verificando...' : 'Verificar Código'}
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </form>
+                        )}
+
+                        {/* RESET PASSWORD FORM */}
+                        {view === 'reset' && (
+                            <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Nueva Contraseña</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <Lock className="w-5 h-5" />
+                                        </div>
+                                        <input
+                                            {...resetForm.register('password')}
+                                            type="password"
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            placeholder="Min. 6 caracteres"
+                                        />
+                                    </div>
+                                    {resetForm.formState.errors.password && <p className="text-red-500 text-xs">{resetForm.formState.errors.password.message}</p>}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 block">Confirmar Contraseña</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <Lock className="w-5 h-5" />
+                                        </div>
+                                        <input
+                                            {...resetForm.register('confirmPassword')}
+                                            type="password"
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            placeholder="Repite la contraseña"
+                                        />
+                                    </div>
+                                    {resetForm.formState.errors.confirmPassword && <p className="text-red-500 text-xs">{resetForm.formState.errors.confirmPassword.message}</p>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={resetForm.formState.isSubmitting}
+                                    className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {resetForm.formState.isSubmitting ? 'Guardando...' : 'Cambiar Contraseña'}
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </form>
+                        )}
+
+                        {/* SUCCESS VIEW */}
+                        {view === 'success' && (
+                            <div className="text-center py-8">
+                                <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+                                    <CheckCircle className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">¡Todo listo!</h3>
+                                <p className="text-gray-500 mb-8">
+                                    Tu contraseña ha sido actualizada correctamente. Ahora puedes iniciar sesión con tus nuevas credenciales.
+                                </p>
+                                <button
+                                    onClick={() => setView('login')}
+                                    className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30"
+                                >
+                                    Volver al Inicio de Sesión
                                 </button>
                             </div>
+                        )}
 
-                            <button
-                                type="submit"
-                                disabled={loginForm.formState.isSubmitting}
-                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
-                            >
-                                {loginForm.formState.isSubmitting ? 'Ingresando...' : 'Acceder al Sistema'}
-                                {!loginForm.formState.isSubmitting && <ArrowRight className="w-5 h-5" />}
-                            </button>
-                        </form>
-                    )}
-
-                    {/* FORGOT PASSWORD FORM */}
-                    {view === 'forgot' && (
-                        <form onSubmit={forgotForm.handleSubmit(onForgotSubmit)} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Email Registrado</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                        <Mail className="w-5 h-5" />
-                                    </div>
-                                    <input
-                                        {...forgotForm.register('email')}
-                                        type="email"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="nombre@ejemplo.com"
-                                    />
-                                </div>
-                                {forgotForm.formState.errors.email && <p className="text-red-500 text-xs">{forgotForm.formState.errors.email.message}</p>}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={forgotForm.formState.isSubmitting}
-                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {forgotForm.formState.isSubmitting ? 'Enviando...' : 'Enviar Código'}
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
-                        </form>
-                    )}
-
-                    {/* VERIFY CODE FORM */}
-                    {view === 'verify' && (
-                        <form onSubmit={verifyForm.handleSubmit(onVerifySubmit)} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Código de Verificación</label>
-                                <input
-                                    {...verifyForm.register('code')}
-                                    type="text"
-                                    maxLength={6}
-                                    className="w-full text-center tracking-[1em] font-mono text-lg py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all uppercase"
-                                    placeholder="ERROR"
-                                />
-                                {verifyForm.formState.errors.code && <p className="text-red-500 text-xs text-center">{verifyForm.formState.errors.code.message}</p>}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={verifyForm.formState.isSubmitting}
-                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {verifyForm.formState.isSubmitting ? 'Verificando...' : 'Verificar Código'}
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
-                        </form>
-                    )}
-
-                    {/* RESET PASSWORD FORM */}
-                    {view === 'reset' && (
-                        <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Nueva Contraseña</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                        <Lock className="w-5 h-5" />
-                                    </div>
-                                    <input
-                                        {...resetForm.register('password')}
-                                        type="password"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="Min. 6 caracteres"
-                                    />
-                                </div>
-                                {resetForm.formState.errors.password && <p className="text-red-500 text-xs">{resetForm.formState.errors.password.message}</p>}
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 block">Confirmar Contraseña</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                        <Lock className="w-5 h-5" />
-                                    </div>
-                                    <input
-                                        {...resetForm.register('confirmPassword')}
-                                        type="password"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="Repite la contraseña"
-                                    />
-                                </div>
-                                {resetForm.formState.errors.confirmPassword && <p className="text-red-500 text-xs">{resetForm.formState.errors.confirmPassword.message}</p>}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={resetForm.formState.isSubmitting}
-                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {resetForm.formState.isSubmitting ? 'Guardando...' : 'Cambiar Contraseña'}
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
-                        </form>
-                    )}
-
-                    {/* SUCCESS VIEW */}
-                    {view === 'success' && (
-                        <div className="text-center py-8">
-                            <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-                                <CheckCircle className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">¡Todo listo!</h3>
-                            <p className="text-gray-500 mb-8">
-                                Tu contraseña ha sido actualizada correctamente. Ahora puedes iniciar sesión con tus nuevas credenciales.
-                            </p>
-                            <button
-                                onClick={() => setView('login')}
-                                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30"
-                            >
-                                Volver al Inicio de Sesión
-                            </button>
-                        </div>
-                    )}
-
+                    </div>
                 </div>
             </div>
         </div>

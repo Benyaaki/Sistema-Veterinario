@@ -83,28 +83,40 @@ async def get_upcoming_consultations(limit: int = 5, user = Depends(get_current_
         
     return result
 
+from app.models.branch import Branch
+from typing import Optional
+
 @router.get("/calendar")
 async def get_calendar_events(
     start: datetime,
     end: datetime,
+    appointment_type: str = None,
+    branch_id: Optional[str] = None,
     user = Depends(get_current_user)
 ):
-    consultations = await Consultation.find(
+    query = [
         Consultation.date >= start,
         Consultation.date <= end
-    ).to_list()
+    ]
+    
+    if appointment_type:
+        query.append(Consultation.appointment_type == appointment_type)
+    
+    if branch_id:
+        query.append(Consultation.branch_id == branch_id)
+        
+    consultations = await Consultation.find(*query).to_list()
     
     events = []
     for c in consultations:
         patient = await Patient.get(c.patient_id)
+        branch = await Branch.get(c.branch_id) if c.branch_id else None
         
         # Ensure UTC timezone is indicated if naive
         start_date = c.date
         end_date = c.date + timedelta(minutes=30)
         
         # If naive, assume UTC and append Z. If aware, isoformat will include offset.
-        # But safest for standard JS consumption is forcing ISO with Z if it's really UTC.
-        # Since we use datetime.utcnow(), it is naive but represents UTC.
         start_str = start_date.isoformat() + 'Z' if start_date.tzinfo is None else start_date.isoformat()
         end_str = end_date.isoformat() + 'Z' if end_date.tzinfo is None else end_date.isoformat()
 
@@ -114,7 +126,9 @@ async def get_calendar_events(
             "start": start_str,
             "end": end_str, 
             "reason": c.reason,
-            "patient_id": str(c.patient_id)
+            "patient_id": str(c.patient_id),
+            "branch_name": branch.name if branch else "Sucursal Desconocida",
+            "branch_id": str(c.branch_id) if c.branch_id else None
         })
         
     return events

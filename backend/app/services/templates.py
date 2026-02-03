@@ -1,6 +1,6 @@
 def get_email_template(title: str, content: str, action_url: str = None, action_text: str = None):
     """
-    Generates a responsive HTML email template with PattyVet branding.
+    Generates a responsive HTML email template with CalFer branding.
     """
     # Brand Colors
     primary_color = "#4FD1C5" # Teal/Mint
@@ -176,7 +176,7 @@ def get_email_template(title: str, content: str, action_url: str = None, action_
             <div class="main">
               <!-- HEADER -->
               <div class="header">
-                 <h1>PattyVet</h1>
+                 <h1>CalFer</h1>
               </div>
 
               <!-- BODY -->
@@ -203,7 +203,7 @@ def get_email_template(title: str, content: str, action_url: str = None, action_
               <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                 <tr>
                   <td class="content-block">
-                    <span class="apple-link">PattyVet Veterinaria Integral</span>
+                    <span class="apple-link">CalFer Veterinaria Integral</span>
                   </td>
                 </tr>
               </table>

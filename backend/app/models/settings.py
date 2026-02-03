@@ -4,13 +4,18 @@ from datetime import datetime
 
 class VetSettings(Document):
     clinic_name: str = "Paty Veterinaria"
+    rut: Optional[str] = None
     address: str = "Dirección"
     phone: str = "Teléfono"
+    fax: Optional[str] = None
     email: str = "contacto@paty.vet"
+    website: Optional[str] = None
     city: str = "Ciudad"
+    policy_text: Optional[str] = "Gracias por su compra."
+    logo_url: Optional[str] = None
     
     email_templates: Dict[str, str] = {
-        "appointment_confirmation": "Hola {tutor_name},\n\nSu hora para {patient_name} ha sido reservada con éxito.\nFecha: {date}\nMotivo: {reason}\n{notes}\n\nGracias por confiar en PattyVet."
+        "appointment_confirmation": "Hola {tutor_name},\n\nSu hora para {patient_name} ha sido reservada con éxito.\nFecha: {date}\nMotivo: {reason}\n{notes}\n\nGracias por confiar en CalFer."
     }
     
     schedule: Dict[str, str] = {

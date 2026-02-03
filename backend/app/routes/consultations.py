@@ -23,6 +23,9 @@ class ConsultationCreate(BaseModel):
     notes: Optional[str] = None
     exams_requested: Optional[str] = None
     status: Optional[str] = "scheduled"
+    branch_id: Optional[str] = None
+    appointment_type: str = "VET"
+    assigned_staff_id: Optional[str] = None
 
 class ConsultationUpdate(BaseModel):
     date: Optional[datetime] = None
@@ -33,7 +36,12 @@ class ConsultationUpdate(BaseModel):
     treatment: Optional[str] = None
     notes: Optional[str] = None
     exams_requested: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[str] = "scheduled"
+    # v2.0
+    branch_id: Optional[str] = None
+    appointment_type: Optional[str] = None
+    assigned_staff_id: Optional[str] = None
+    reference_sale_id: Optional[str] = None
 
 from app.services.templates import get_email_template
 
@@ -58,13 +66,23 @@ async def create_consultation(
         
     new_con = Consultation(**con_data)
     await new_con.insert()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="APPOINTMENT",
+        description=f"Cita agendada para {patient.name} ({new_con.appointment_type}) - {new_con.reason}",
+        branch_id=PydanticObjectId(new_con.branch_id) if new_con.branch_id else None,
+        reference_id=str(new_con.id)
+    )
 
     # Send confirmation email
     try:
         tutor = await Tutor.get(patient.tutor_id)
         if tutor and tutor.email:
             print(f"DEBUG: Attempting to send email to {tutor.email}")
-            subject = "Confirmación de Reserva - PattyVet"
+            subject = "Confirmación de Reserva - CalFer"
             date_str = new_con.date.strftime('%d/%m/%Y %H:%M')
             
             # Fetch settings for template
@@ -134,6 +152,16 @@ async def update_consultation(
 
     old_date = con.date
     update_data = data.model_dump(exclude_unset=True)
+    
+    # Logic: Grooming Check
+    if update_data.get("status") == "attended":
+        # Check current type OR updated type
+        c_type = update_data.get("appointment_type", con.appointment_type)
+        if c_type == "GROOMING":
+             has_sale = con.reference_sale_id or update_data.get("reference_sale_id")
+             if not has_sale:
+                 raise HTTPException(status_code=400, detail="Grooming appointments require a Sale before finishing.")
+
     await con.set(update_data)
     
     # Check if date was updated and is different AND notification is requested
@@ -144,7 +172,7 @@ async def update_consultation(
                 tutor = await Tutor.get(patient.tutor_id)
                 if tutor and tutor.email:
                     print(f"DEBUG: Reschedule - Sending email to {tutor.email}")
-                    subject = "Tu cita ha sido reagendada - PattyVet"
+                    subject = "Tu cita ha sido reagendada - CalFer"
                     date_str = con.date.strftime('%d/%m/%Y %H:%M')
                     
                     body = f"Hola {tutor.full_name}, Tu cita para {patient.name} ha sido reagendada para el {date_str}."

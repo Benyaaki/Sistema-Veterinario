@@ -53,4 +53,24 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboar
 from app.routes import debug
 app.include_router(debug.router, prefix="/api/v1/debug", tags=["Debug"])
 
+# v2.0 Routes
+# v2.0 Routes
+from app.routes import branches, products, inventory, sales, deliveries, reports, suppliers, activity_logs
+app.include_router(branches.router, prefix="/api/v1/branches", tags=["Branches"])
+app.include_router(products.router, prefix="/api/v1/products", tags=["Products"])
+app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory"])
+app.include_router(sales.router, prefix="/api/v1/sales", tags=["Sales"])
+app.include_router(deliveries.router, prefix="/api/v1/deliveries", tags=["Deliveries"])
+app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Suppliers"])
+app.include_router(activity_logs.router, prefix="/api/v1/activity-logs", tags=["Activity Logs"])
 
+from app.routes import users
+app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
+
+from app.routes import import_data
+app.include_router(import_data.router, prefix="/api/v1/import", tags=["Import"])
+
+
+
+# Force Reload Trigger

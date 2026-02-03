@@ -1,111 +1,194 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, Calendar, LogOut, Settings as SettingsIcon, Cat, Menu, X } from 'lucide-react';
-import clsx from 'clsx';
-import { useState, useEffect } from 'react';
+import { useBranch } from '../context/BranchContext';
+import {
+    LayoutDashboard, ShoppingCart, FileText, Package, Truck,
+    Calendar, Users, Cat, Settings as SettingsIcon,
+    LogOut, ChevronDown, ChevronRight, Activity, BarChart3
+} from 'lucide-react';
+import { useState } from 'react';
+import BranchSelector from '../components/BranchSelector';
 
 const MainLayout = () => {
-    const { logout, user } = useAuth();
-    const navigate = useNavigate();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { user, logout, hasAnyRole } = useAuth();
     const location = useLocation();
+    const [expandedSections, setExpandedSections] = useState<string[]>(['ventas', 'material', 'personas', 'veterinaria', 'administracion']);
 
-    // Close sidebar on route change (mobile)
-    useEffect(() => {
-        setIsSidebarOpen(false);
-    }, [location]);
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const toggleSection = (section: string) => {
+        setExpandedSections(prev =>
+            prev.includes(section)
+                ? prev.filter(s => s !== section)
+                : [...prev, section]
+        );
     };
 
-    const navItems = [
-        { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/agenda', label: 'Agenda', icon: Calendar },
-        { to: '/tutores', label: 'Tutores', icon: Users },
-        { to: '/pacientes', label: 'Pacientes', icon: Cat },
-        { to: '/ajustes', label: 'Ajustes', icon: SettingsIcon },
+    // Navigation structure with sections
+    const navSections = [
+        {
+            id: 'ventas',
+            title: 'Ventas',
+            icon: ShoppingCart,
+            visible: hasAnyRole(['seller', 'admin', 'superadmin', 'veterinarian']),
+            items: [
+                { to: '/ventas/nueva', label: 'Nueva Venta', icon: ShoppingCart },
+                { to: '/ventas/mis-ventas', label: 'Mis Ventas', icon: FileText }
+            ]
+        },
+        {
+            id: 'material',
+            title: 'Material',
+            icon: Package,
+            visible: hasAnyRole(['seller', 'admin', 'superadmin']),
+            items: [
+                { to: '/inventario', label: 'Inventario', icon: Package },
+                { to: '/stock', label: 'Stock Sucursales', icon: Package },
+                { to: '/recepcion', label: 'Recepción', icon: Truck },
+                { to: '/despachos', label: 'Despachos', icon: Truck }
+            ]
+        },
+        {
+            id: 'personas',
+            title: 'Personas',
+            icon: Users,
+            visible: true,
+            items: [
+                { to: '/clientes', label: 'Clientes', icon: Users, visible: hasAnyRole(['seller', 'admin', 'superadmin']) },
+                { to: '/proveedores', label: 'Proveedores', icon: Users, visible: hasAnyRole(['admin', 'superadmin']) }
+            ]
+        },
+        {
+            id: 'veterinaria',
+            title: 'Veterinaria',
+            icon: Cat,
+            visible: hasAnyRole(['veterinarian', 'admin', 'superadmin']),
+            items: [
+                { to: '/agenda', label: 'Agenda', icon: Calendar },
+                { to: '/tutores', label: 'Tutores', icon: Users },
+                { to: '/pacientes', label: 'Pacientes', icon: Cat }
+            ]
+        },
+        {
+            id: 'administracion',
+            title: 'Administración',
+            icon: SettingsIcon,
+            visible: hasAnyRole(['admin', 'superadmin']),
+            items: [
+                { to: '/empleados', label: 'Empleados', icon: Users },
+                { to: '/reportes', label: 'Reportes', icon: BarChart3 },
+                { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity },
+                { to: '/ajustes', label: 'Ajustes', icon: SettingsIcon }
+            ]
+        }
     ];
 
     return (
-        <div className="flex h-screen bg-brand-bg font-sans overflow-hidden">
-            {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 w-full bg-brand-surface z-20 shadow-sm border-b px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                    <img src="/img/logo.png" alt="PattyVet" className="h-8 w-auto object-contain" />
-                    <span className="font-bold text-gray-800">PattyVet</span>
-                </div>
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                    {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
-            </div>
-
-            {/* Overlay */}
-            {isSidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
-
+        <div className="flex h-screen bg-brand-bg">
             {/* Sidebar */}
-            <aside className={`
-                fixed inset-y-0 left-0 z-40 w-64 bg-brand-surface shadow-md flex flex-col border-r border-brand-accent/20
-                transform transition-transform duration-300 ease-in-out
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:relative md:translate-x-0
-            `}>
-                <div className="p-6 border-b border-brand-accent/20 flex items-center justify-center md:flex hidden">
-                    <img src="/img/logo.png" alt="PattyVet" className="h-32 w-auto object-contain" />
+            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+                {/* Logo */}
+                <div className="p-6 border-b border-gray-200 flex items-center justify-center">
+                    <img src="/img/logo.png" alt="CalFer" className="h-16 w-auto object-contain" />
                 </div>
 
-                {/* Mobile specific logo area in sidebar if needed, or just spacers */}
-                <div className="md:hidden p-4 flex justify-end">
-                    {/* Close button inside sidebar specifically for mobile if header isn't enough, but header button handles toggle. 
-                         Let's keep it clean. */}
+                {/* Branch Selector */}
+                <div className="py-4 border-b border-gray-200">
+                    <BranchSelector />
                 </div>
 
-                <nav className="flex-1 p-4 space-y-1 mt-12 md:mt-0">
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.to}
-                            to={item.to}
-                            className={({ isActive }) =>
-                                clsx(
-                                    'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
-                                    isActive
-                                        ? 'bg-white text-primary shadow-sm'
-                                        : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'
-                                )
-                            }
-                        >
-                            <item.icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
-                        </NavLink>
-                    ))}
+                {/* Navigation */}
+                <nav className="flex-1 overflow-y-auto py-4">
+                    {/* Dashboard */}
+                    <Link
+                        to="/dashboard"
+                        className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-colors ${location.pathname === '/dashboard'
+                            ? 'bg-brand-surface text-primary font-medium'
+                            : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                    >
+                        <LayoutDashboard size={20} />
+                        <span>Dashboard</span>
+                    </Link>
+
+                    <div className="h-px bg-gray-200 my-3 mx-4" />
+
+                    {/* Sections */}
+                    {navSections.map(section => {
+                        if (!section.visible) return null;
+                        const isExpanded = expandedSections.includes(section.id);
+                        const SectionIcon = section.icon;
+
+                        return (
+                            <div key={section.id} className="mb-2">
+                                <button
+                                    onClick={() => toggleSection(section.id)}
+                                    className="w-full flex items-center justify-between px-4 py-2 text-gray-600 hover:bg-gray-50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <SectionIcon size={18} />
+                                        <span className="font-semibold text-sm">{section.title}</span>
+                                    </div>
+                                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </button>
+
+                                {isExpanded && (
+                                    <div className="ml-4 mt-1 space-y-1">
+                                        {section.items.map(item => {
+                                            if ((item as any).visible === false) return null;
+                                            const ItemIcon = item.icon;
+                                            const isActive = location.pathname === item.to;
+
+                                            return (
+                                                <Link
+                                                    key={item.to}
+                                                    to={item.to}
+                                                    className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${isActive
+                                                        ? 'bg-brand-surface text-primary font-medium'
+                                                        : 'text-gray-600 hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <ItemIcon size={18} />
+                                                    <span className="text-sm">{item.label}</span>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </nav>
 
-                <div className="p-4 border-t border-brand-accent/20">
-                    <div className="px-4 py-2 mb-2">
-                        <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                {/* User Info */}
+                <div className="p-4 border-t border-gray-200">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-brand-surface rounded-full flex items-center justify-center">
+                            <span className="text-primary font-semibold">
+                                {user?.name?.charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{user?.name}</div>
+                            <div className="text-xs text-gray-500 capitalize">
+                                {user?.role === 'seller' ? 'Vendedor' :
+                                    user?.role === 'admin' ? 'Administrador' :
+                                        user?.role === 'superadmin' ? 'Super Administrador' :
+                                            user?.role === 'veterinarian' ? 'Veterinario' :
+                                                user?.role}
+                            </div>
+                        </div>
                     </div>
                     <button
-                        onClick={handleLogout}
-                        className="flex items-center space-x-3 w-full px-4 py-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                        onClick={logout}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
                     >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium">Cerrar Sesión</span>
+                        <LogOut size={16} />
+                        Cerrar Sesión
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto p-4 md:p-8 pt-20 md:pt-8 w-full">
+            <main className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
                 <Outlet />
             </main>
         </div>

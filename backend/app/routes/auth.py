@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from app.models.user import User
 from app.core.security import verify_password, create_access_token
-from typing import Annotated
+from typing import Annotated, Optional
 from pydantic import BaseModel
 from passlib.context import CryptContext
+from beanie import PydanticObjectId
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
@@ -12,9 +13,21 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class UserRegister(BaseModel):
     name: str
+    last_name: Optional[str] = None
     email: str
     password: str
     role: str = "assistant"
+    phone: Optional[str] = None
+    branch_id: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    branch_id: Optional[str] = None
+    password: Optional[str] = None
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     from jose import JWTError, jwt
@@ -26,6 +39,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        # print("DEBUG: decoding token", token[:10])
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         email: str = payload.get("sub")
         if email is None:
@@ -47,9 +61,12 @@ async def register_user(data: UserRegister, current_user: Annotated[User, Depend
     hashed = pwd_context.hash(data.password)
     user = User(
         name=data.name,
+        last_name=data.last_name,
         email=data.email,
         password_hash=hashed,
-        role=data.role
+        role=data.role,
+        phone=data.phone,
+        branch_id=PydanticObjectId(data.branch_id) if data.branch_id else None
     )
     await user.insert()
     return {"message": "User created", "id": str(user.id)}
@@ -67,13 +84,41 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.put("/users/{id}/full")
+async def update_user(id: str, data: UserUpdate, current_user: Annotated[User, Depends(get_current_user)]):
+    # Only admin/superadmin can update other users
+    if current_user.id != PydanticObjectId(id) and "admin" not in current_user.roles and "superadmin" not in current_user.roles:
+         raise HTTPException(status_code=403, detail="Not authorized to update this user")
+
+    user = await User.get(id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if data.name is not None: user.name = data.name
+    if data.last_name is not None: user.last_name = data.last_name
+    if data.email is not None: user.email = data.email
+    if data.role is not None: user.role = data.role
+    if data.phone is not None: user.phone = data.phone
+    if data.branch_id is not None: 
+        user.branch_id = PydanticObjectId(data.branch_id) if data.branch_id else None
+    
+    if data.password:
+        user.password_hash = pwd_context.hash(data.password)
+        
+    await user.save()
+    return {"message": "User updated", "user": {"id": str(user.id), "name": user.name, "email": user.email}}
+
 @router.get("/me")
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return {
         "id": str(current_user.id),
         "name": current_user.name,
+        "last_name": current_user.last_name,
         "email": current_user.email,
         "role": current_user.role,
+        "roles": current_user.roles,
+        "phone": current_user.phone,
+        "branch_id": str(current_user.branch_id) if current_user.branch_id else None,
         "signature_file_id": current_user.signature_file_id
     }
 
@@ -83,8 +128,12 @@ async def list_users(current_user: Annotated[User, Depends(get_current_user)]):
     return [{
         "id": str(u.id),
         "name": u.name,
+        "last_name": u.last_name,
         "email": u.email,
-        "role": u.role
+        "role": u.role,
+        "roles": u.roles,
+        "phone": u.phone,
+        "branch_id": str(u.branch_id) if u.branch_id else None
     } for u in users]
 
 @router.delete("/users/{id}")
@@ -97,6 +146,8 @@ async def delete_user(id: str, current_user: Annotated[User, Depends(get_current
     
     await user.delete()
     return {"message": "User deleted"}
+
+# Force reload
 
 # Password Reset Flow
 
@@ -140,13 +191,13 @@ async def forgot_password(data: ForgotPasswordRequest):
         # It's blocking but simple.
         send_email_sync(
             to_email=user.email,
-            subject="Restablecimiento de Contraseña - PattyVet",
+            subject="Restablecimiento de Contraseña - CalFer",
             body=f"Hola {user.name},\n\nTu código de verificación para restablecer tu contraseña es: {code}\n\nEste código expira en 15 minutos.\n\nSi no solicitaste esto, ignora este correo.",
             html_body=f"""
                 <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding: 40px 20px; text-align: center;">
                     <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                         <div style="background-color: #2b7a78; padding: 30px 0;">
-                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">PattyVet</h1>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">CalFer</h1>
                         </div>
                         <div style="padding: 40px 30px; text-align: left;">
                             <h2 style="color: #1a202c; font-size: 20px; font-weight: bold; margin-bottom: 20px;">Restablecimiento de Contraseña</h2>
@@ -167,7 +218,7 @@ async def forgot_password(data: ForgotPasswordRequest):
                         </div>
                         <div style="background-color: #f7fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
                             <p style="color: #a0aec0; font-size: 12px; margin: 0;">
-                                &copy; {datetime.now().year} PattyVet. Todos los derechos reservados.
+                                &copy; {datetime.now().year} CalFer. Todos los derechos reservados.
                             </p>
                         </div>
                     </div>

@@ -14,6 +14,13 @@ class Consultation(Document):
     exams_requested: Optional[str] = None
     file_ids: List[str] = []
     status: str = "scheduled" # scheduled, attended, no_show
+    
+    # v2.0 Extensions
+    branch_id: Optional[PydanticObjectId] = None
+    appointment_type: str = "VET" # VET, GROOMING
+    assigned_staff_id: Optional[PydanticObjectId] = None
+    reference_sale_id: Optional[PydanticObjectId] = None
+
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
 

@@ -59,6 +59,16 @@ async def create_patient(patient_data: PatientCreate, user = Depends(get_current
 
     new_patient = Patient(**p_data)
     await new_patient.insert()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="PATIENT_ADD",
+        description=f"Paciente agregado: {new_patient.name} ({new_patient.species})",
+        reference_id=str(new_patient.id)
+    )
+    
     return new_patient
 
 @router.get("/", response_model=List[Patient])

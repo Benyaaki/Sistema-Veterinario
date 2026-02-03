@@ -1,0 +1,61 @@
+PASO A PASO PARA EJECUTAR EL PROYECTO (Backend + Frontend)
+=========================================================
+
+Cada vez que enciendas tu PC, sigue estos pasos para poner en marcha el sistema.
+
+REQUISITOS PREVIOS:
+-------------------
+Asegurate de tener instalados:
+- Python
+- Node.js
+- VS Code (opcional pero recomendado)
+
+PASO 1: ABRIR EL PROYECTO
+-------------------------
+Abre la carpeta "Sistema WEB Veterinaria" en VS Code o abre una terminal (PowerShell o CMD) en esa ubicación.
+
+PASO 2: EJECUTAR EL BACKEND (Servidor de Python/FastAPI)
+--------------------------------------------------------
+1. Abre una terminal.
+2. Navega a la carpeta del backend:
+   cd backend
+
+3. Activa el entorno virtual:
+   .\venv\Scripts\activate
+   (Si funciona verás un (venv) al principio de la línea).
+
+4. Ejecuta el servidor:
+   python -m uvicorn app.main:app --reload
+
+   * Deberías ver mensajes como "Application startup complete".
+   * Déjalo corriendo. No cierres esta terminal.
+
+PASO 3: EJECUTAR EL FRONTEND (Interfaz Web/React)
+-------------------------------------------------
+1. Abre OTRA terminal nueva (sin cerrar la del backend).
+2. Navega a la carpeta del frontend (desde la raíz del proyecto):
+   cd frontend
+
+3. Inicia el servidor de desarrollo:
+   npm run dev
+
+   * Verás algo como "Local: http://localhost:5173/".
+
+PASO 4: USAR EL SISTEMA
+-----------------------
+Abre tu navegador (Chrome, Edge, etc.) e ingresa a:
+http://localhost:5173/
+
+¡Listo!
+
+---------------------------------------------------------
+RESUMEN RÁPIDO DE COMANDOS:
+
+Terminal 1 (Backend):
+cd backend
+.\venv\Scripts\activate
+python -m uvicorn app.main:app --reload
+
+Terminal 2 (Frontend):
+cd frontend
+npm run dev

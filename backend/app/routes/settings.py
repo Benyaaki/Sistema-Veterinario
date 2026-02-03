@@ -11,10 +11,15 @@ from typing import Dict
 
 class SettingsUpdate(BaseModel):
     clinic_name: str
+    rut: Optional[str] = None
     address: str
     phone: str
+    fax: Optional[str] = None
     email: str
+    website: Optional[str] = None
     city: str
+    policy_text: Optional[str] = None
+    logo_url: Optional[str] = None
     email_templates: Dict[str, str] = {}
     schedule: Dict[str, str] = {}
 

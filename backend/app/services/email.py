@@ -27,7 +27,7 @@ def send_email_sync(to_email: str, subject: str, body: str, html_body: str = Non
     # Define sender (must be verified in Brevo provided user uses that domain)
     # Using the MAIL_FROM setting or a fallback. 
     # Note: Brevo requires the sender email to be verified.
-    sender = {"name": "PattyVet", "email": settings.MAIL_FROM or settings.MAIL_USERNAME or "no-reply@pattyvet.cl"}
+    sender = {"name": "CalFer", "email": settings.MAIL_FROM or settings.MAIL_USERNAME or "no-reply@calfer.cl"}
     to = [{"email": to_email}]
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(

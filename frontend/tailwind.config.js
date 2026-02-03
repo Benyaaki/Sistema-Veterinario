@@ -7,11 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#4FA3A1', // Verde petróleo pastel
-        secondary: '#D98FA6', // Rosado pastel
-        'brand-bg': '#FAFAFA', // Blanco suave
-        'brand-surface': '#E6F2F3', // Celeste muy claro
-        'brand-accent': '#BFD6DF', // Azul grisáceo claro
+        primary: '#5B9AA8', // Azul grisáceo del login (similar al botón)
+        secondary: '#7BA5B0', // Azul más claro
+        'brand-bg': '#F8FAFB', // Blanco con tinte azul muy suave
+        'brand-surface': '#E8F1F5', // Azul muy claro (como el fondo del login)
+        'brand-accent': '#A8C5D1', // Azul grisáceo medio
       }
     },
   },

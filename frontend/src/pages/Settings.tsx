@@ -51,26 +51,47 @@ const GeneralSettings = ({ user }: any) => {
             <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Información General</h2>
             <div className="space-y-4">
                 <div>
-                    <label className="label">Nombre Clínica</label>
+                    <label className="label">Nombre del Comercio</label>
                     <input {...register('clinic_name')} className="input" />
                 </div>
+
+                {/* Logo Placeholder - would integrate with upload if backend supported it for general settings or use URL */}
+
                 <div>
-                    <label className="label">Dirección</label>
-                    <input {...register('address')} className="input" />
+                    <label className="label">Dirección del Comercio</label>
+                    <textarea {...register('address')} className="input" rows={3} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="label">Teléfono</label>
                         <input {...register('phone')} className="input" />
                     </div>
                     <div>
+                        <label className="label">Fax</label>
+                        <input {...register('fax')} className="input" />
+                    </div>
+                    <div>
                         <label className="label">Email</label>
                         <input {...register('email')} className="input" />
                     </div>
+                    <div>
+                        <label className="label">Sitio Web</label>
+                        <input {...register('website')} className="input" />
+                    </div>
+                    <div>
+                        <label className="label">Ciudad</label>
+                        <input {...register('city')} className="input" />
+                    </div>
+                    <div>
+                        <label className="label">Rut</label>
+                        <input {...register('rut')} className="input" />
+                    </div>
                 </div>
+
                 <div>
-                    <label className="label">Ciudad</label>
-                    <input {...register('city')} className="input" />
+                    <label className="label">Política de Devolución (Texto del Recibo)</label>
+                    <textarea {...register('policy_text')} className="input" rows={2} />
                 </div>
             </div>
 
@@ -267,16 +288,19 @@ const UsersSettings = ({ currentUser }: any) => {
 
     return (
         <div className="space-y-8">
-            <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Gestión de Usuarios</h2>
+            <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Gestión de Usuarios y Permisos</h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-4">
-                <h3 className="font-semibold text-blue-900">Crear nuevo usuario</h3>
+                <h3 className="font-semibold text-blue-900">Crear nuevo usuario y asignar rol</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input {...register('name')} className="input" placeholder="Nombre completo" required />
                     <input {...register('email')} type="email" className="input" placeholder="Email" required />
                     <input {...register('password')} type="password" className="input" placeholder="Contraseña" required />
                     <select {...register('role')} className="input">
                         <option value="assistant">Asistente</option>
+                        <option value="vet">Veterinario</option>
+                        <option value="groomer">Peluquero</option>
+                        <option value="sales">Vendedor</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
@@ -322,8 +346,8 @@ const Settings = () => {
         <div className="max-w-4xl mx-auto pb-10">
             <div className="mb-6 flex items-center">
                 <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                    <SettingsIcon className="mr-3 text-secondary" />
-                    Ajustes de Veterinaria
+                    <SettingsIcon className="mr-3 text-blue-400" />
+                    Ajustes de la Plataforma
                 </h1>
             </div>
 
@@ -335,7 +359,7 @@ const Settings = () => {
                         <TabButton id="services" icon={Stethoscope} label="Servicios y Precios" active={activeTab} set={setActiveTab} />
                         <TabButton id="templates" icon={Mail} label="Plantillas de Correo" active={activeTab} set={setActiveTab} />
                         <TabButton id="schedule" icon={Calendar} label="Horarios" active={activeTab} set={setActiveTab} />
-                        <TabButton id="users" icon={Users} label="Usuarios y Acceso" active={activeTab} set={setActiveTab} />
+                        <TabButton id="users" icon={Users} label="Usuarios y Permisos" active={activeTab} set={setActiveTab} />
                     </nav>
                 </div>
 

@@ -5,7 +5,8 @@ const ProtectedRoute = () => {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
-        return <div>Cargando...</div>; // Or a spinner component
+        console.log("ProtectedRoute is loading...");
+        return <div className="p-10 text-center text-gray-500">Cargando sistema... (Si esto demora, el servidor puede estar apagado)</div>;
     }
 
     if (!isAuthenticated) {

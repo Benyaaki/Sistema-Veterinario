@@ -24,7 +24,7 @@ async def test_email(data: EmailTest):
         msg = MIMEMultipart('alternative')
         msg['From'] = settings.MAIL_FROM or user
         msg['To'] = data.to_email
-        msg['Subject'] = "Prueba de Correo - PattyVet Debug"
+        msg['Subject'] = "Prueba de Correo - CalFer Debug"
         
         body = f"Prueba desde {server_host}:{port} (SSL={settings.MAIL_SSL_TLS})."
         part1 = MIMEText(body, 'plain')

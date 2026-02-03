@@ -24,10 +24,19 @@ async def init_db():
             Prescription,
             VetSettings,
             FileRecord,
-            Service
+            Service,
+            # v2.0 Models
+            "app.models.branch.Branch",
+            "app.models.product.Product",
+            "app.models.stock.Stock",
+            "app.models.inventory.InventoryMovement",
+            "app.models.sale.Sale",
+            "app.models.delivery.DeliveryOrder",
+            "app.models.supplier.Supplier",
+            "app.models.activity_log.ActivityLog",
         ]
     )
-    await create_initial_user()
+    # await create_initial_user() # Disabled per user request (admin@paty.vet regeneration)
 
 async def create_initial_user():
     from app.core.security import get_password_hash # Import here to avoid circular depends if any
