@@ -1,88 +1,68 @@
-# Veterinaria Paty - Sistema de Gestión
+# Sistema de Gestión Veterinaria
 
-Sistema web para gestión de fichas clínicas veterinarias, desarrollado con FastAPI, MongoDB, React y TailwindCSS.
-
-## Requisitos Previos
-
-Asegúrate de tener instalado lo siguiente en tu sistema:
-
-- **Python** (v3.10 o superior)
-- **Node.js** (v18 o superior)
-- **MongoDB** (Debe estar ejecutándose localmente o tener una URI de conexión)
-
-## Configuración del Backend
-
-1. **Navegar a la carpeta del backend:**
-   ```bash
-   cd backend
-   ```
-
-2. **Crear y activar un entorno virtual:**
-   ```bash
-   python -m venv venv
-   # En Windows:
-   .\venv\Scripts\activate
-   # En macOS/Linux:
-   source venv/bin/activate
-   ```
-
-3. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configurar variables de entorno:**
-   - Copia el archivo de ejemplo `.env.example` a `.env`:
-     ```bash
-     cp .env.example .env
-     # O en Windows command prompt: copy .env.example .env
-     ```
-   - Abre `.env` y ajusta las configuraciónes si es necesario (especialmente `MONGODB_URI` si tu base de datos no está en el puerto por defecto).
-
-5. **(Opcional) Cargar datos de prueba:**
-   Si deseas poblar la base de datos con datos iniciales:
-   ```bash
-   python seed_v2.py
-   ```
-
-6. **Iniciar el servidor:**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-   El backend estará disponible en `http://localhost:8000`.
-   La documentación de la API se puede ver en `http://localhost:8000/docs`.
-
-## Configuración del Frontend
-
-1. **Navegar a la carpeta del frontend:**
-   Desde la raíz del proyecto:
-   ```bash
-   cd frontend
-   ```
-
-2. **Instalar dependencias:**
-   ```bash
-   npm install
-   ```
-
-3. **Iniciar el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
-   El frontend estará disponible generalmente en `http://localhost:5173` (la terminal mostrará la URL exacta).
-
-## Estructura del Proyecto
-
-- **/backend**: Código fuente de la API (FastAPI).
-  - **/app**: Lógica principal, modelos y rutas.
-- **/frontend**: Código fuente de la interfaz (React + Vite).
-- **/docs**: Documentación adicional (si aplica).
+Sistema web integral desarrollado para la administración eficiente de clínicas veterinarias. Esta solución moderna facilita el control de pacientes, inventario, ventas y reportes de gestión.
 
 ## Características Principales
 
-- **Tutores**: Gestión de clientes.
-- **Pacientes**: Fichas clínicas con historial completo.
-- **Consultas**: Registro detallado de atenciones.
-- **Exámenes**: Subida y gestión de archivos.
-- **Recetas**: Generación de recetas en PDF.
-# Sistema-Veterinario
+*   **Gestión Clínica**:
+    *   Fichas clínicas digitales de pacientes (historial médico, vacunas, desparasitaciones).
+    *   Registro de tutores y mascotas.
+    *   Agenda de citas y recordatorios.
+*   **Punto de Venta (POS)**:
+    *   Venta de productos y servicios.
+    *   Control de caja y métodos de pago múltiples.
+    *   Generación de boletas y control de deudas.
+*   **Inventario**:
+    *   Control de stock en tiempo real.
+    *   Gestión de proveedores y órdenes de compra.
+    *   Alertas de stock bajo y vencimientos.
+*   **Gestión Administrativa**:
+    *   Reportes avanzados de ventas, rendimiento y productividad.
+    *   Control de acceso basado en roles (Administrador, Veterinario, Vendedor).
+    *   Gestión de múltiples sucursales.
+
+## Tecnologías Utilizadas
+
+*   **Frontend**: React, TypeScript, TailwindCSS, Vite.
+*   **Backend**: Python, FastAPI.
+*   **Base de Datos**: MongoDB (Beanie ODM).
+*   **Infraestructura**: Docker ready (opcional).
+
+## Instalación y Configuración
+
+### Requisitos Previos
+*   Python 3.10+
+*   Node.js 18+
+*   MongoDB local o clúster remoto.
+
+### 1. Configuración del Backend
+
+```bash
+cd backend
+python -m venv venv
+# Activar entorno virtual:
+# Windows: .\venv\Scripts\activate
+# Linux/Mac: source venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+# Configura tus variables de entorno en .env (MongoDB URI, Secret Key, etc.)
+
+python seed_v2.py # (Opcional) Cargar datos iniciales
+uvicorn app.main:app --reload
+```
+
+El servidor iniciará en `http://localhost:8000`.
+
+### 2. Configuración del Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La aplicación estará disponible en `http://localhost:5173`.
+
+---
+Desarrollado con enfoque en rendimiento, escalabilidad y experiencia de usuario.
