@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Calendar, Filter, RefreshCw, User, Building2, Activity, ChevronDown } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, User, Building2, Activity, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ActivityLog {
     _id: string;
@@ -9,8 +9,10 @@ interface ActivityLog {
     action_type: string;
     description: string;
     branch_name?: string;
+    branch_id?: string;
     created_at: string;
     metadata?: any;
+    reference_id?: string;
 }
 
 const ActivityHistory = () => {
@@ -20,20 +22,54 @@ const ActivityHistory = () => {
     const [filters, setFilters] = useState({
         action_type: '',
         branch_id: '',
-        user_name: '', // We filter by name in backend or ID? Backend supports ID. Let's use ID if possible, or name loosely.
-        // Looking at backend `activity_logs.py`: it supports `user_id` (OId) and `action_type`. 
-        // Frontend `ActivityHistory` originally had basic filters.
-        // Let's rely on `user_id` for precise filtering if we have the list, or name if backend supports search.
-        // Backend `activity_logs.py` has `user_id`.
         user_id: '',
-        start_date: '',
-        end_date: ''
     });
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [branches, setBranches] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
 
     // Pagination
     const LIMIT = 20;
+    const [selectedSale, setSelectedSale] = useState<any | null>(null);
+    const [loadingSale, setLoadingSale] = useState(false);
+
+    // ... existing pagination state ...
+
+    // Helper to resolve branch name (fixes historical 'Sucursal' logs)
+    const getBranchName = (activity: ActivityLog) => {
+        if (activity.branch_name && activity.branch_name !== 'Sucursal') {
+            return activity.branch_name;
+        }
+        // Fallback to lookup
+        if (activity.branch_id) {
+            const branch = branches.find(b => b._id === activity.branch_id);
+            if (branch) return branch.name;
+        }
+        // Last resort
+        return activity.branch_name || '-';
+    };
+
+    const handleActionClick = async (activity: ActivityLog) => {
+        if (activity.action_type !== 'SALE' || !activity.reference_id) return;
+
+        setLoadingSale(true);
+        try {
+            // First try metadata if complete (legacy optimization)
+            if (activity.metadata?.items && activity.metadata?.payment_method) {
+                // If metadata is rich (future proof), use it. 
+                // Currently only minimal metadata is saved.
+            }
+
+            // Fetch full sale details
+            const res = await api.get(`/sales/${activity.reference_id}`);
+            setSelectedSale(res.data);
+        } catch (error) {
+            console.error("Error fetching sale details:", error);
+            alert("No se pudo cargar el detalle de la venta.");
+        } finally {
+            setLoadingSale(false);
+        }
+    };
     const [skip, setSkip] = useState(0);
     const [hasMore, setHasMore] = useState(true);
 
@@ -50,10 +86,13 @@ const ActivityHistory = () => {
     }
 
     useEffect(() => {
-        loadInitialData();
         loadBranches();
         loadUsers();
     }, []);
+
+    useEffect(() => {
+        loadInitialData();
+    }, [currentDate]);
 
     const loadBranches = async () => {
         try {
@@ -87,8 +126,13 @@ const ActivityHistory = () => {
             if (filters.action_type) params.append('action_type', filters.action_type);
             if (filters.branch_id) params.append('branch_id', filters.branch_id);
             if (filters.user_id) params.append('user_id', filters.user_id);
-            if (filters.start_date) params.append('start_date', filters.start_date);
-            if (filters.end_date) params.append('end_date', filters.end_date);
+
+            // Date logic
+            const startOfDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0).toISOString();
+            const endOfDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59).toISOString();
+
+            params.append('start_date', startOfDay);
+            params.append('end_date', endOfDay);
 
             params.append('limit', LIMIT.toString());
             params.append('skip', offset.toString());
@@ -107,7 +151,6 @@ const ActivityHistory = () => {
             }
         } catch (error) {
             console.error(error);
-            // alert('Error al cargar el historial de actividades');
         } finally {
             setLoading(false);
         }
@@ -117,6 +160,12 @@ const ActivityHistory = () => {
         const newSkip = skip + LIMIT;
         setSkip(newSkip);
         loadActivities(newSkip, false);
+    };
+
+    const handleShowLess = () => {
+        setSkip(0);
+        setActivities(prev => prev.slice(0, LIMIT));
+        setHasMore(true);
     };
 
     const handleFilterChange = (field: string, value: string) => {
@@ -132,13 +181,21 @@ const ActivityHistory = () => {
             action_type: '',
             branch_id: '',
             user_id: '',
-            start_date: '',
-            end_date: ''
         });
-        setTimeout(() => {
-            setSkip(0); // Reset pagination manually for the effect closure
-            loadActivities(0, true); // Force load with 0 
-        }, 100);
+        setCurrentDate(new Date());
+        setTimeout(() => loadInitialData(), 0);
+    };
+
+    const handlePrevDay = () => {
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() - 1);
+        setCurrentDate(newDate);
+    };
+
+    const handleNextDay = () => {
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() + 1);
+        setCurrentDate(newDate);
     };
 
     const getActionColor = (actionType: string) => {
@@ -176,12 +233,37 @@ const ActivityHistory = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                    <Filter size={20} className="text-gray-600" />
-                    <h2 className="text-lg font-semibold text-gray-800">Filtros</h2>
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                    <div className="flex items-center gap-2">
+                        <Filter size={20} className="text-gray-600" />
+                        <h2 className="text-lg font-semibold text-gray-800">Filtros</h2>
+                    </div>
+
+                    {/* Date Navigator */}
+                    <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                        <button
+                            onClick={handlePrevDay}
+                            className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+
+                        <div className="px-4 text-center min-w-[200px]">
+                            <span className="block font-bold text-gray-800 capitalize text-sm">
+                                {currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            </span>
+                        </div>
+
+                        <button
+                            onClick={handleNextDay}
+                            className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Acción</label>
                         <select
@@ -227,48 +309,21 @@ const ActivityHistory = () => {
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Desde</label>
-                        <input
-                            type="date"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            value={filters.start_date}
-                            onChange={e => handleFilterChange('start_date', e.target.value)}
-                        />
+                    <div className="flex items-end gap-2">
+                        <button
+                            onClick={applyFilters}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 flex-1 justify-center"
+                        >
+                            <Filter size={16} />
+                            Aplicar
+                        </button>
+                        <button
+                            onClick={clearFilters}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                            Limpiar
+                        </button>
                     </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Hasta</label>
-                        <input
-                            type="date"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            value={filters.end_date}
-                            onChange={e => handleFilterChange('end_date', e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex gap-2 mt-4 mt-r-auto">
-                    <button
-                        onClick={applyFilters}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    >
-                        <Filter size={16} />
-                        Aplicar
-                    </button>
-                    <button
-                        onClick={clearFilters}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                    >
-                        Limpiar
-                    </button>
-                    <button
-                        onClick={loadInitialData}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 ml-auto"
-                    >
-                        <RefreshCw size={16} className={loading && activities.length === 0 ? 'animate-spin' : ''} />
-                        Actualizar
-                    </button>
                 </div>
             </div>
 
@@ -281,7 +336,7 @@ const ActivityHistory = () => {
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">
                                     <div className="flex items-center gap-2">
                                         <Calendar size={16} />
-                                        Fecha/Hora
+                                        Hora
                                     </div>
                                 </th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -304,10 +359,7 @@ const ActivityHistory = () => {
                             {activities.map(activity => (
                                 <tr key={activity._id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 text-gray-600">
-                                        {new Date(activity.created_at).toLocaleString('es-CL', {
-                                            year: 'numeric',
-                                            month: '2-digit',
-                                            day: '2-digit',
+                                        {new Date(activity.created_at).toLocaleTimeString('es-CL', {
                                             hour: '2-digit',
                                             minute: '2-digit'
                                         })}
@@ -316,7 +368,11 @@ const ActivityHistory = () => {
                                         {activity.user_name}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(activity.action_type)}`}>
+                                        <span
+                                            onClick={() => activity.action_type === 'SALE' && handleActionClick(activity)}
+                                            className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(activity.action_type)} ${activity.action_type === 'SALE' ? 'cursor-pointer hover:underline hover:opacity-80' : ''}`}
+                                            title={activity.action_type === 'SALE' ? 'Ver detalle de venta' : ''}
+                                        >
                                             {getActionLabel(activity.action_type)}
                                         </span>
                                     </td>
@@ -324,7 +380,7 @@ const ActivityHistory = () => {
                                         {activity.description}
                                     </td>
                                     <td className="px-4 py-3 text-gray-600">
-                                        {activity.branch_name || '-'}
+                                        {getBranchName(activity)}
                                     </td>
                                 </tr>
                             ))}
@@ -332,7 +388,7 @@ const ActivityHistory = () => {
                             {activities.length === 0 && !loading && (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-gray-400 italic">
-                                        No se encontraron actividades
+                                        No se encontraron actividades para este día.
                                     </td>
                                 </tr>
                             )}
@@ -341,13 +397,24 @@ const ActivityHistory = () => {
                     </table>
                 </div>
 
-                {/* Load More Button */}
-                {hasMore && (
-                    <div className="p-4 flex justify-center border-t border-gray-200">
+                {/* Load More / Less Buttons */}
+                <div className="p-4 flex justify-center border-t border-gray-200 gap-2">
+                    {activities.length > LIMIT && (
+                        <button
+                            onClick={handleShowLess}
+                            disabled={loading}
+                            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2 font-medium"
+                        >
+                            <ChevronUp size={16} />
+                            Ver menos
+                        </button>
+                    )}
+
+                    {hasMore && (
                         <button
                             onClick={handleLoadMore}
                             disabled={loading}
-                            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
+                            className="px-6 py-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
                         >
                             {loading ? (
                                 <RefreshCw size={16} className="animate-spin" />
@@ -356,14 +423,83 @@ const ActivityHistory = () => {
                             )}
                             {loading ? 'Cargando...' : 'Ver más actividades'}
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* Pagination Info */}
                 <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-600 text-center">
                     Mostrando {activities.length} registro(s)
                 </div>
             </div>
+            {/* Sale Detail Modal */}
+            {selectedSale && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-in fade-in">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-800">Detalle de Venta</h3>
+                                <p className="text-sm text-gray-500">ID: {selectedSale.id?.slice(-6) || '...'}</p>
+                            </div>
+                            <button onClick={() => setSelectedSale(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <span className="block text-gray-500 text-xs">Cliente</span>
+                                    <span className="font-semibold text-gray-800">
+                                        {selectedSale.customer_name || 'Cliente General'}
+                                    </span>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-lg">
+                                    <span className="block text-gray-500 text-xs">Método de Pago</span>
+                                    <span className="font-semibold text-gray-800">
+                                        {{
+                                            'CASH': 'Efectivo',
+                                            'DEBIT': 'Débito',
+                                            'CREDIT': 'Crédito',
+                                            'TRANSFER': 'Transferencia',
+                                            'DEBT': 'Deudado'
+                                        }[selectedSale.payment_method as string] || selectedSale.payment_method}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Products List */}
+                            <div>
+                                <h4 className="font-medium text-gray-700 mb-2 border-b pb-1">Productos</h4>
+                                <div className="max-h-48 overflow-y-auto space-y-2">
+                                    {selectedSale.items?.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                            <div>
+                                                <span className="font-medium text-gray-800">{item.name}</span>
+                                                <div className="text-xs text-gray-500">x{item.quantity} un.</div>
+                                            </div>
+                                            <span className="font-medium text-gray-600">${item.total?.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Total Footer */}
+                            <div className="border-t pt-4 flex justify-between items-center">
+                                <span className="text-gray-600">Total Pagado</span>
+                                <span className="text-2xl font-bold text-blue-600">${selectedSale.total?.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <button
+                                onClick={() => setSelectedSale(null)}
+                                className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

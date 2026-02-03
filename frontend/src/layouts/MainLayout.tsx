@@ -10,7 +10,7 @@ import { useState } from 'react';
 import BranchSelector from '../components/BranchSelector';
 
 const MainLayout = () => {
-    const { user, logout, hasAnyRole } = useAuth();
+    const { user, logout, hasPermission } = useAuth();
     const location = useLocation();
     const [expandedSections, setExpandedSections] = useState<string[]>(['ventas', 'material', 'personas', 'veterinaria', 'administracion']);
 
@@ -28,55 +28,54 @@ const MainLayout = () => {
             id: 'ventas',
             title: 'Ventas',
             icon: ShoppingCart,
-            visible: hasAnyRole(['seller', 'admin', 'superadmin', 'veterinarian']),
+            visible: hasPermission('ventas'), // General Sales Access
             items: [
-                { to: '/ventas/nueva', label: 'Nueva Venta', icon: ShoppingCart },
-                { to: '/ventas/mis-ventas', label: 'Mis Ventas', icon: FileText }
+                { to: '/ventas/nueva', label: 'Nueva Venta', icon: ShoppingCart, visible: hasPermission('ventas') },
+                { to: '/ventas/mis-ventas', label: 'Mis Ventas', icon: FileText, visible: hasPermission('ventas') }
             ]
         },
         {
             id: 'material',
             title: 'Material',
             icon: Package,
-            visible: hasAnyRole(['seller', 'admin', 'superadmin']),
+            visible: hasPermission('inventory') || hasPermission('stock') || hasPermission('reception') || hasPermission('dispatch'),
             items: [
-                { to: '/inventario', label: 'Inventario', icon: Package },
-                { to: '/stock', label: 'Stock Sucursales', icon: Package },
-                { to: '/recepcion', label: 'Recepción', icon: Truck },
-                { to: '/despachos', label: 'Despachos', icon: Truck }
+                { to: '/inventario', label: 'Inventario', icon: Package, visible: hasPermission('inventory') },
+                { to: '/stock', label: 'Stock Sucursales', icon: Package, visible: hasPermission('stock') },
+                { to: '/recepcion', label: 'Recepción', icon: Truck, visible: hasPermission('reception') },
+                { to: '/despachos', label: 'Despachos', icon: Truck, visible: hasPermission('dispatch') }
             ]
         },
         {
             id: 'personas',
             title: 'Personas',
             icon: Users,
-            visible: true,
+            visible: hasPermission('clients') || hasPermission('suppliers'),
             items: [
-                { to: '/clientes', label: 'Clientes', icon: Users, visible: hasAnyRole(['seller', 'admin', 'superadmin']) },
-                { to: '/proveedores', label: 'Proveedores', icon: Users, visible: hasAnyRole(['admin', 'superadmin']) }
+                { to: '/clientes', label: 'Clientes', icon: Users, visible: hasPermission('clients') },
+                { to: '/proveedores', label: 'Proveedores', icon: Users, visible: hasPermission('suppliers') }
             ]
         },
         {
             id: 'veterinaria',
             title: 'Veterinaria',
             icon: Cat,
-            visible: hasAnyRole(['veterinarian', 'admin', 'superadmin']),
+            visible: hasPermission('agenda') || hasPermission('tutors') || hasPermission('patients'),
             items: [
-                { to: '/agenda', label: 'Agenda', icon: Calendar },
-                { to: '/tutores', label: 'Tutores', icon: Users },
-                { to: '/pacientes', label: 'Pacientes', icon: Cat }
+                { to: '/agenda', label: 'Agenda', icon: Calendar, visible: hasPermission('agenda') },
+                { to: '/tutores', label: 'Tutores', icon: Users, visible: hasPermission('tutors') },
+                { to: '/pacientes', label: 'Pacientes', icon: Cat, visible: hasPermission('patients') }
             ]
         },
         {
             id: 'administracion',
             title: 'Administración',
             icon: SettingsIcon,
-            visible: hasAnyRole(['admin', 'superadmin']),
+            visible: hasPermission('employees') || hasPermission('reports') || hasPermission('activity'),
             items: [
-                { to: '/empleados', label: 'Empleados', icon: Users },
-                { to: '/reportes', label: 'Reportes', icon: BarChart3 },
-                { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity },
-                { to: '/ajustes', label: 'Ajustes', icon: SettingsIcon }
+                { to: '/empleados', label: 'Empleados', icon: Users, visible: hasPermission('employees') },
+                { to: '/reportes', label: 'Reportes', icon: BarChart3, visible: hasPermission('reports') },
+                { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity, visible: hasPermission('activity') }
             ]
         }
     ];

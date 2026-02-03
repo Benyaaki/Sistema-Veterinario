@@ -61,10 +61,15 @@ async def dashboard_stats(
             Sale.status == "COMPLETED"
         ]
         
-        # Admin check for data scope (if restricted) - dashboard usually shows all for admin, local for others
-        if "admin" not in user.roles and "superadmin" not in user.roles:
+        is_admin = "admin" in user.roles or "superadmin" in user.roles or user.role in ["admin", "superadmin"]
+
+        # Admin check for data scope
+        # Sales: Admins see Global (or Branch Global). Non-Admins see THEIR OWN sales only.
+        if not is_admin:
             if user.branch_id:
                 s_query.append(Sale.branch_id == user.branch_id)
+            # Filter by Creator (Individual Sales) as requested
+            s_query.append(Sale.created_by == user.id)
         
         sales = await Sale.find(*s_query).to_list()
         
@@ -73,7 +78,9 @@ async def dashboard_stats(
             Consultation.date >= start_dt,
             Consultation.date <= end_dt
         ]
-        if "admin" not in user.roles and "superadmin" not in user.roles:
+        
+        # Appointments: Global for everyone (visible to all in branch)
+        if not is_admin:
             if user.branch_id:
                 c_query.append(Consultation.branch_id == user.branch_id)
                 

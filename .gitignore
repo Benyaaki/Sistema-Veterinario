@@ -25,3 +25,10 @@ Thumbs.db
 backend/instance/
 frontend/dist/
 frontend/.vite/
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log

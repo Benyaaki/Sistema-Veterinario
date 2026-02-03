@@ -9,6 +9,30 @@ interface EmployeeFormModalProps {
     userToEdit?: any;
 }
 
+const ALL_PERMISSIONS = [
+    { id: 'ventas', label: 'Ventas (General)' },
+    { id: 'inventory', label: 'Inventario' },
+    { id: 'stock', label: 'Stock Sucursales' },
+    { id: 'reception', label: 'Recepción' },
+    { id: 'dispatch', label: 'Despachos' },
+    { id: 'clients', label: 'Clientes' },
+    { id: 'suppliers', label: 'Proveedores' },
+    { id: 'agenda', label: 'Agenda Veterinaria' },
+    { id: 'tutors', label: 'Tutores' },
+    { id: 'patients', label: 'Pacientes' },
+    { id: 'employees', label: 'Empleados' },
+    { id: 'reports', label: 'Reportes' },
+    { id: 'activity', label: 'Historial Actividades' },
+];
+
+const ROLE_PRESETS: Record<string, string[]> = {
+    'admin': ['ventas', 'inventory', 'stock', 'reception', 'dispatch', 'clients', 'suppliers', 'agenda', 'tutors', 'patients', 'employees', 'reports', 'activity'],
+    'seller': ['ventas', 'inventory', 'stock', 'reception', 'dispatch', 'clients', 'agenda', 'tutors', 'patients'],
+    'veterinarian': ['ventas', 'inventory', 'stock', 'clients', 'agenda', 'tutors', 'patients'],
+    'groomer': ['ventas', 'inventory', 'stock', 'agenda'],
+    'assistant': []
+};
+
 const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeFormModalProps) => {
     const [formData, setFormData] = useState({
         name: '',
@@ -17,7 +41,8 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
         phone: '',
         role: 'assistant',
         branch_id: '',
-        password: ''
+        password: '',
+        permissions: [] as string[]
     });
     const [branches, setBranches] = useState<any[]>([]);
     const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +52,12 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
         if (isOpen) {
             loadBranches();
             if (userToEdit) {
+                // Determine initial permissions: use saved or fallback to role preset
+                let initialPermissions = userToEdit.permissions || [];
+                if (initialPermissions.length === 0 && userToEdit.role) {
+                    initialPermissions = ROLE_PRESETS[userToEdit.role] || [];
+                }
+
                 setFormData({
                     name: userToEdit.name || '',
                     last_name: userToEdit.last_name || '',
@@ -34,7 +65,8 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                     phone: userToEdit.phone || '',
                     role: userToEdit.role || 'seller',
                     branch_id: userToEdit.branch_id || '',
-                    password: '' // Password blank on edit
+                    password: '', // Password blank on edit
+                    permissions: initialPermissions
                 });
             } else {
                 setFormData({
@@ -44,7 +76,8 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                     phone: '',
                     role: 'seller',
                     branch_id: '',
-                    password: ''
+                    password: '',
+                    permissions: ROLE_PRESETS['seller'] || []
                 });
             }
         }
@@ -57,6 +90,25 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
         } catch (error) {
             console.error(error);
         }
+    };
+
+    const handleRoleChange = (newRole: string) => {
+        setFormData(prev => ({
+            ...prev,
+            role: newRole,
+            permissions: ROLE_PRESETS[newRole] || []
+        }));
+    };
+
+    const togglePermission = (permId: string) => {
+        setFormData(prev => {
+            const exists = prev.permissions.includes(permId);
+            if (exists) {
+                return { ...prev, permissions: prev.permissions.filter(p => p !== permId) };
+            } else {
+                return { ...prev, permissions: [...prev.permissions, permId] };
+            }
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -90,7 +142,7 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h2 className="text-xl font-bold text-gray-800">
                         {userToEdit ? 'Editar Empleado' : 'Nuevo Empleado'}
@@ -100,117 +152,162 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                            <input
-                                required
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            />
+                <div className="flex flex-col md:flex-row">
+                    {/* Left Column: Basic Info */}
+                    <form onSubmit={handleSubmit} className="p-6 space-y-4 flex-1 border-r border-gray-100">
+                        <h3 className="font-semibold text-gray-700 mb-2">Información Personal</h3>
+                        <div className="grid grid-cols-1 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                                <input
+                                    required
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
+                                <input
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.last_name}
+                                    onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
-                            <input
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.last_name}
-                                onChange={e => setFormData({ ...formData, last_name: e.target.value })}
-                            />
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                            <input
-                                required
-                                type="email"
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.email}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            />
+                        <div className="grid grid-cols-1 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                <input
+                                    required
+                                    type="email"
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.email}
+                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                                <input
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.phone}
+                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                            <input
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.phone}
-                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                            />
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
-                            <select
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.role}
-                                onChange={e => setFormData({ ...formData, role: e.target.value })}
-                            >
-                                <option value="seller">Vendedor</option>
-                                <option value="admin">Administrador</option>
-                                <option value="veterinarian">Veterinario</option>
-                                <option value="groomer">Peluquero</option>
-                            </select>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
+                                <select
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.role}
+                                    onChange={e => handleRoleChange(e.target.value)}
+                                >
+                                    <option value="seller">Vendedor</option>
+                                    <option value="admin">Administrador</option>
+                                    <option value="veterinarian">Veterinario</option>
+                                    <option value="groomer">Peluquero</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">Al cambiar el rol se reiniciarán los permisos.</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+                                <select
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    value={formData.branch_id}
+                                    onChange={e => setFormData({ ...formData, branch_id: e.target.value })}
+                                >
+                                    <option value="">Sin Sucursal Asignada</option>
+                                    {branches.map(b => (
+                                        <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
-                            <select
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.branch_id}
-                                onChange={e => setFormData({ ...formData, branch_id: e.target.value })}
-                            >
-                                <option value="">Sin Sucursal Asignada</option>
-                                {branches.map(b => (
-                                    <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {userToEdit ? 'Contraseña' : 'Contraseña *'}
-                        </label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                required={!userToEdit}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none pr-10"
-                                value={formData.password}
-                                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                            />
-                            <button
-                                type="button"
-                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                                onClick={() => setShowPassword(!showPassword)}
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {userToEdit ? 'Contraseña' : 'Contraseña *'}
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required={!userToEdit}
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none pr-10"
+                                    value={formData.password}
+                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6 md:hidden">
+                            {/* Mobile buttons */}
+                            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg">Suspender</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg">Guardar</button>
+                        </div>
+                    </form>
+
+                    {/* Right Column: Permissions */}
+                    <div className="p-6 bg-gray-50 flex-1 overflow-y-auto max-h-[600px]">
+                        <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
+                            <span>Otorgar Módulos</span>
+                            <span className="text-xs font-normal bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                {formData.permissions.length} seleccionados
+                            </span>
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                            Seleccione manualmente los módulos a los que este empleado tendrá acceso. Estos permisos anulan los predeterminados del rol.
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-2">
+                            {ALL_PERMISSIONS.map(perm => (
+                                <label
+                                    key={perm.id}
+                                    className={`flex items-center p-3 rounded-lg border transition-all cursor-pointer ${formData.permissions.includes(perm.id)
+                                            ? 'bg-white border-blue-500 shadow-sm'
+                                            : 'bg-gray-100 border-transparent hover:bg-gray-200'
+                                        }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                        checked={formData.permissions.includes(perm.id)}
+                                        onChange={() => togglePermission(perm.id)}
+                                    />
+                                    <span className="ml-3 text-sm font-medium text-gray-700">{perm.label}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 bg-white font-medium"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 font-medium flex items-center gap-2"
-                        >
-                            <Save size={18} />
-                            {loading ? 'Guardando...' : (userToEdit ? 'Actualizar' : 'Crear Empleado')}
-                        </button>
-                    </div>
-                </form>
+                {/* Footer Actions (Desktop) */}
+                <div className="hidden md:flex justify-end gap-3 p-6 border-t border-gray-200 bg-white rounded-b-xl">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 bg-white font-medium"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-sm transition-colors"
+                    >
+                        <Save size={18} />
+                        {loading ? 'Guardando...' : (userToEdit ? 'Actualizar Permisos' : 'Crear Empleado')}
+                    </button>
+                </div>
             </div>
         </div>
     );

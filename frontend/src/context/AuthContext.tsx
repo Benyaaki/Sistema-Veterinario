@@ -8,6 +8,7 @@ interface User {
     email: string;
     role: string; // Deprecated but might come from legacy endpoints
     roles?: string[]; // New System
+    permissions?: string[]; // Granular Permissions
     signature_file_id: string | null;
 }
 
@@ -19,6 +20,7 @@ interface AuthContextType {
     logout: () => void;
     hasRole: (role: string) => boolean;
     hasAnyRole: (roles: string[]) => boolean;
+    hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,8 +75,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return roles.some(r => user.roles?.includes(r) || user.role === r);
     };
 
+    const ROLE_DEFAULTS: Record<string, string[]> = {
+        'admin': ['ventas', 'inventory', 'stock', 'reception', 'dispatch', 'clients', 'suppliers', 'agenda', 'tutors', 'patients', 'employees', 'reports', 'activity'],
+        'seller': ['ventas', 'inventory', 'stock', 'reception', 'dispatch', 'clients', 'agenda', 'tutors', 'patients'],
+        'veterinarian': ['ventas', 'inventory', 'stock', 'clients', 'agenda', 'tutors', 'patients'],
+        'groomer': ['ventas', 'inventory', 'stock', 'agenda'],
+        'assistant': []
+    };
+
+    const hasPermission = (permission: string) => {
+        if (!user) return false;
+        if (user.roles?.includes('superadmin') || user.role === 'superadmin') return true;
+        if (user.roles?.includes('admin') || user.role === 'admin') return true; // Admin has all by default?
+
+        // If manual permissions are set, use them
+        if (user.permissions && user.permissions.length > 0) {
+            return user.permissions.includes(permission);
+        }
+
+        // Fallback to role defaults
+        const role = user.role || 'assistant';
+        const defaults = ROLE_DEFAULTS[role] || [];
+        return defaults.includes(permission);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, hasRole, hasAnyRole }}>
+        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, hasRole, hasAnyRole, hasPermission }}>
             {children}
         </AuthContext.Provider>
     );

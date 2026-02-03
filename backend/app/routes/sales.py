@@ -97,25 +97,6 @@ async def create_sale(data: SaleCreate, user: User = Depends(get_current_user)):
     # 3. Save Sale
     await sale.insert()
 
-    # 4. Log Activity
-    from app.services.activity_service import log_activity
-    await log_activity(
-        user=user,
-        action_type="SALE",
-        description=f"Venta realizada por ${int(sale.total):,} con {len(sale.items)} producto(s)",
-        branch_id=sale.branch_id,
-        branch_name="Sucursal",
-        reference_id=str(sale.id)
-    )
-
-    return sale
-            # We can insert sale first? No, if stock fails we abort.
-            # But we are in async. Let's insert sale first, if it fails we are in trouble?
-            # Ideally use transactions. Beanie supports sessions, but complex for this scope.
-            # We will proceed linearly. If stock save fails, Sale isn't created? No, we haven't inserted sale yet.
-
-    await sale.insert()
-
     # 3. Create Inventory Movements (Now we have sale.id)
     for item in data.items:
         if item.type == "PRODUCT" and item.product_id:
@@ -146,7 +127,8 @@ async def create_sale(data: SaleCreate, user: User = Depends(get_current_user)):
         await delivery.insert()
 
     # 5. Log Activity
-    from app.routes.activity_logs import log_activity
+    # 5. Log Activity
+    from app.services.activity_service import log_activity
     from app.models.branch import Branch
     
     branch = await Branch.get(sale.branch_id)
@@ -285,3 +267,18 @@ async def get_my_sales(
     sales = await Sale.find(*query).sort("-created_at").to_list()
     
     return await populate_customer_names(sales)
+
+@router.get("/{id}", response_model=Sale)
+async def get_sale_by_id(id: str, user: User = Depends(get_current_user)):
+    sale = await Sale.get(id)
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    
+    # Populate customer name if needed
+    if sale.customer_id:
+        from app.models.tutor import Tutor
+        tutor = await Tutor.get(sale.customer_id)
+        if tutor:
+            sale.customer_name = tutor.full_name
+            
+    return sale

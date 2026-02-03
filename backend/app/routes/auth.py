@@ -19,6 +19,7 @@ class UserRegister(BaseModel):
     role: str = "assistant"
     phone: Optional[str] = None
     branch_id: Optional[str] = None
+    permissions: Optional[list[str]] = []
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
@@ -28,6 +29,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     branch_id: Optional[str] = None
     password: Optional[str] = None
+    permissions: Optional[list[str]] = None
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     from jose import JWTError, jwt
@@ -66,7 +68,8 @@ async def register_user(data: UserRegister, current_user: Annotated[User, Depend
         password_hash=hashed,
         role=data.role,
         phone=data.phone,
-        branch_id=PydanticObjectId(data.branch_id) if data.branch_id else None
+        branch_id=PydanticObjectId(data.branch_id) if data.branch_id else None,
+        permissions=data.permissions or []
     )
     await user.insert()
     return {"message": "User created", "id": str(user.id)}
@@ -99,6 +102,7 @@ async def update_user(id: str, data: UserUpdate, current_user: Annotated[User, D
     if data.email is not None: user.email = data.email
     if data.role is not None: user.role = data.role
     if data.phone is not None: user.phone = data.phone
+    if data.permissions is not None: user.permissions = data.permissions
     if data.branch_id is not None: 
         user.branch_id = PydanticObjectId(data.branch_id) if data.branch_id else None
     
@@ -117,6 +121,7 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
         "email": current_user.email,
         "role": current_user.role,
         "roles": current_user.roles,
+        "permissions": current_user.permissions,
         "phone": current_user.phone,
         "branch_id": str(current_user.branch_id) if current_user.branch_id else None,
         "signature_file_id": current_user.signature_file_id
@@ -132,6 +137,7 @@ async def list_users(current_user: Annotated[User, Depends(get_current_user)]):
         "email": u.email,
         "role": u.role,
         "roles": u.roles,
+        "permissions": u.permissions,
         "phone": u.phone,
         "branch_id": str(u.branch_id) if u.branch_id else None
     } for u in users]

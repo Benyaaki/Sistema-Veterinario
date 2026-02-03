@@ -23,7 +23,7 @@ const Reports = () => {
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
     });
-    const [reportType, setReportType] = useState<'weekly' | 'monthly'>('monthly');
+    const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
     // Stats
     const [salesStats, setSalesStats] = useState<any>(null);
@@ -245,9 +245,14 @@ const Reports = () => {
         // Appointments Chart
         await addChart('chart-appointments-by-type', 'Distribución de Citas');
 
-        // Page Break for Tables
-        doc.addPage();
-        yPos = 20;
+        // Check if we need a new page for the next section
+        if (yPos + 50 > pageHeight) {
+            doc.addPage();
+            yPos = 20;
+        } else {
+            yPos += 15;
+        }
+
         doc.setFontSize(16);
         doc.text('Detalle de Ventas e Inventario', 14, yPos);
         yPos += 10;
@@ -304,6 +309,15 @@ const Reports = () => {
         // Save
         doc.save(`Reporte_CalFer_${dateRange.start}_${dateRange.end}.pdf`);
         setGeneratingPDF(false);
+    };
+
+    const setTodayRange = () => {
+        const today = new Date().toISOString().split('T')[0];
+        setDateRange({
+            start: today,
+            end: today
+        });
+        setReportType('daily');
     };
 
     const setWeeklyRange = () => {
@@ -365,6 +379,15 @@ const Reports = () => {
                             className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                     </div>
+                    <button
+                        onClick={setTodayRange}
+                        className={`px-4 py-2 rounded-lg transition-colors ${reportType === 'daily'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                    >
+                        Hoy
+                    </button>
                     <button
                         onClick={setWeeklyRange}
                         className={`px-4 py-2 rounded-lg transition-colors ${reportType === 'weekly'

@@ -16,6 +16,7 @@ class User(Document):
     created_at: datetime = datetime.utcnow()
     reset_token: Optional[str] = None
     reset_token_expiry: Optional[datetime] = None
+    permissions: List[str] = []
 
     class Settings:
         name = "users"
