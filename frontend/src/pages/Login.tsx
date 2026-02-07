@@ -55,7 +55,8 @@ const Login = () => {
     const onLoginSubmit = async (data: LoginForm) => {
         try {
             setGlobalError(null);
-            if (data.email === 'demo@calfer.cl' && data.password === 'admin123') {
+            if (data.email.toLowerCase().trim() === 'demo@calfer.cl' && data.password.trim() === 'admin123') {
+                console.log("Demo login triggered");
                 await login('demo_token', 'demo_refresh');
                 navigate('/dashboard');
                 return;
@@ -154,7 +155,7 @@ const Login = () => {
         <div
             className="min-h-screen flex items-center justify-end relative"
             style={{
-                backgroundImage: "url('/img/logo_bg.png')",
+                backgroundImage: "url('img/logo_bg.png')",
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat'
@@ -166,7 +167,7 @@ const Login = () => {
                 {/* Left Side - Logo Only */}
                 <div className="flex-1 flex items-center justify-center -ml-48">
                     <div className="bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-2xl border border-white/30 p-8">
-                        <img src="/img/logo_nombre.png" alt="CalFer" className="w-56 h-auto object-contain drop-shadow-lg" />
+                        <img src="img/logo_nombre.png" alt="CalFer" className="w-56 h-auto object-contain drop-shadow-lg" />
                     </div>
                 </div>
 

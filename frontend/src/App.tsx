@@ -34,7 +34,7 @@ function App() {
   return (
     <AuthProvider>
       <BranchProvider>
-        <BrowserRouter>
+        <BrowserRouter basename="/Sistema-Veterinario">
           <Routes>
             <Route path="/login" element={<Login />} />
 
