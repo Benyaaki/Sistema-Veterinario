@@ -9,7 +9,7 @@ interface CartItem extends Product {
 }
 
 const Deliveries = () => {
-    const { user, hasAnyRole } = useAuth();
+    const { hasAnyRole } = useAuth();
     const { currentBranch } = useBranch();
     const [deliveries, setDeliveries] = useState<DeliveryOrder[]>([]);
     const [dispatchers, setDispatchers] = useState<any[]>([]);
@@ -37,13 +37,16 @@ const Deliveries = () => {
 
     // Debounced Customer Search
     useEffect(() => {
-        if (customerMode !== 'SYSTEM' || !customerSearch || customerSearch.length < 2) {
+        if (customerMode !== 'SYSTEM' || !customerSearch || customerSearch.length < 1) {
             setCustomerSuggestions([]);
             return;
         }
         const delay = setTimeout(async () => {
             try {
-                const res = await customersService.getAll({ search: customerSearch });
+                const res = await customersService.getAll({
+                    search: customerSearch,
+                    role: 'client'
+                });
                 setCustomerSuggestions(res.slice(0, 5));
             } catch (e) {
                 console.error(e);
@@ -54,7 +57,7 @@ const Deliveries = () => {
 
     const selectCustomer = (c: any) => {
         setSelectedCustomer(c);
-        setCustomerSearch(c.full_name || c.name); // Use full_name from Tutor model
+        setCustomerSearch(c.first_name ? `${c.first_name} ${c.last_name}` : c.name); // Use split name from Tutor model
         setCustomerSuggestions([]);
         // Auto-fill address if available
         if (c.address) setAddress(c.address);
@@ -170,7 +173,7 @@ const Deliveries = () => {
                 delivery_info: {
                     customer_snapshot: {
                         address,
-                        name: customerMode === 'SYSTEM' ? (selectedCustomer.full_name || selectedCustomer.name) : guestName,
+                        name: customerMode === 'SYSTEM' ? (selectedCustomer.first_name ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : selectedCustomer.name) : guestName,
                         phone: customerMode === 'SYSTEM' ? selectedCustomer.phone : guestContact
                     },
                     shipping_cost: shippingCost,
@@ -451,7 +454,10 @@ const Deliveries = () => {
                                     <div className="flex bg-gray-100 rounded-lg p-1 mb-2">
                                         <button
                                             className={`flex-1 py-1 text-xs font-bold rounded-md transition-colors ${customerMode === 'GUEST' ? 'bg-white shadow text-primary' : 'text-gray-500'}`}
-                                            onClick={() => setCustomerMode('GUEST')}
+                                            onClick={() => {
+                                                setCustomerMode('GUEST');
+                                                if (paymentStatus === 'DEBT') setPaymentStatus('PAID_CASH');
+                                            }}
                                         >
                                             Ocasional
                                         </button>
@@ -498,8 +504,8 @@ const Deliveries = () => {
                                                             onClick={() => selectCustomer(c)}
                                                             className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 text-sm"
                                                         >
-                                                            <div className="font-bold text-gray-800">{c.full_name || c.name}</div>
-                                                            <div className="text-xs text-gray-500 font-mono">{c.phone || 'Sin Teléfono'} • {c.rut || 'Sin RUT'}</div>
+                                                            <div className="font-bold text-gray-800">{c.first_name ? `${c.first_name} ${c.last_name}` : c.name}</div>
+                                                            <div className="text-xs text-gray-500 font-mono">{c.phone || 'Sin Teléfono'}{c.rut ? ` • ${c.rut}` : ''}</div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -515,10 +521,10 @@ const Deliveries = () => {
                                         value={paymentStatus}
                                         onChange={e => setPaymentStatus(e.target.value as any)}
                                     >
-                                        <option value="PAID_CASH">Pagado (Efectivo)</option>
-                                        <option value="PAID_TRANSFER">Pagado (Transferencia)</option>
+                                        <option value="PAID_CASH">Efectivo</option>
+                                        <option value="PAID_TRANSFER">Transferencia</option>
                                         {customerMode === 'SYSTEM' && (
-                                            <option value="DEBT">Por Pagar (Deuda/Contra entrega)</option>
+                                            <option value="DEBT">Deudado</option>
                                         )}
                                     </select>
                                 </div>

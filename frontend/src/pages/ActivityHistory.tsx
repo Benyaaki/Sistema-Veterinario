@@ -31,7 +31,6 @@ const ActivityHistory = () => {
     // Pagination
     const LIMIT = 20;
     const [selectedSale, setSelectedSale] = useState<any | null>(null);
-    const [loadingSale, setLoadingSale] = useState(false);
 
     // ... existing pagination state ...
 
@@ -49,10 +48,19 @@ const ActivityHistory = () => {
         return activity.branch_name || '-';
     };
 
+    const formatTime = (dateString: string) => {
+        if (!dateString) return 'N/A';
+        const hasTimezone = dateString.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(dateString);
+        const isoString = hasTimezone ? dateString : `${dateString}Z`;
+        return new Date(isoString).toLocaleTimeString('es-CL', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     const handleActionClick = async (activity: ActivityLog) => {
         if (activity.action_type !== 'SALE' || !activity.reference_id) return;
 
-        setLoadingSale(true);
         try {
             // First try metadata if complete (legacy optimization)
             if (activity.metadata?.items && activity.metadata?.payment_method) {
@@ -66,8 +74,6 @@ const ActivityHistory = () => {
         } catch (error) {
             console.error("Error fetching sale details:", error);
             alert("No se pudo cargar el detalle de la venta.");
-        } finally {
-            setLoadingSale(false);
         }
     };
     const [skip, setSkip] = useState(0);
@@ -199,29 +205,121 @@ const ActivityHistory = () => {
     };
 
     const getActionColor = (actionType: string) => {
-        switch (actionType) {
+        const type = actionType.replace(/ /g, '_');
+        // High priority colors
+        if (type.includes('DELETE') || type.includes('VOID') || type.includes('FAILED') || type.includes('FAIL') || type.includes('LOCKOUT') || type.includes('BLOCK')) {
+            return 'bg-red-100 text-red-700';
+        }
+
+        switch (type) {
             case 'SALE': return 'bg-green-100 text-green-700';
-            case 'INVENTORY_MOVE': return 'bg-blue-100 text-blue-700';
-            case 'APPOINTMENT': return 'bg-purple-100 text-purple-700';
-            case 'PATIENT_ADD': return 'bg-pink-100 text-pink-700';
-            case 'CLIENT_ADD': return 'bg-indigo-100 text-indigo-700';
-            case 'PRODUCT_ADD': return 'bg-orange-100 text-orange-700';
-            case 'SUPPLIER_ADD': return 'bg-yellow-100 text-yellow-700';
+            case 'INVENTORY_MOVE':
+            case 'INVENTORY_ADJUST':
+            case 'INVENTORY_INIT':
+                return 'bg-blue-100 text-blue-700';
+            case 'APPOINTMENT':
+            case 'CONSULTATION_ADD':
+            case 'CONSULTATION_EDIT':
+                return 'bg-purple-100 text-purple-700';
+            case 'PATIENT_ADD':
+            case 'PATIENT_EDIT':
+                return 'bg-pink-100 text-pink-700';
+            case 'CLIENT_ADD':
+            case 'CLIENT_EDIT':
+            case 'TUTOR_ADD':
+                return 'bg-indigo-100 text-indigo-700';
+            case 'PRODUCT_ADD':
+            case 'PRODUCT_CREATE':
+            case 'PRODUCT_ADD_BULK':
+            case 'PRODUCT_UPDATE':
+                return 'bg-orange-100 text-orange-700';
+            case 'EMAIL_SENT': return 'bg-blue-100 text-blue-700 font-bold';
+            case 'SUPPLIER_ADD':
+            case 'SUPPLIER_EDIT':
+                return 'bg-yellow-100 text-yellow-700';
+            case 'USER_ADD':
+            case 'USER_EDIT':
+            case 'USER_ACTIVATE':
+            case 'USER_UNLOCK':
+                return 'bg-teal-100 text-teal-700';
+            case 'BRANCH_ADD':
+            case 'BRANCH_UPDATE':
+                return 'bg-sky-100 text-sky-700';
+            case 'LOGIN':
+            case 'SECURITY_LOGIN_SUCCESS':
+                return 'bg-green-50 text-green-600';
+            case 'LOGOUT': return 'bg-gray-100 text-gray-600';
+            case 'SECURITY_SETTING_CHANGE':
+            case 'ROLE_UPDATE':
+            case 'PERMISSION_UPDATE':
+            case 'PASSWORD_RESET':
+            case 'USER_PASSWORD_CHANGE':
+                return 'bg-amber-100 text-amber-700 font-bold';
             default: return 'bg-gray-100 text-gray-700';
         }
     };
 
     const getActionLabel = (actionType: string) => {
+        const type = actionType.replace(/ /g, '_');
         const labels: Record<string, string> = {
             'SALE': 'Venta',
-            'INVENTORY_MOVE': 'Inventario',
+            'SALE_VOID': 'Venta Anulada',
+            'INVENTORY_MOVE': 'Movimiento Inventario',
+            'INVENTORY_ADJUST': 'Ajuste de Stock',
+            'INVENTORY_INIT': 'Inventario Inicial',
             'APPOINTMENT': 'Cita',
             'PATIENT_ADD': 'Paciente Nuevo',
+            'PATIENT_EDIT': 'Paciente Editado',
+            'PATIENT_DELETE': 'Paciente Eliminado',
             'CLIENT_ADD': 'Cliente Nuevo',
+            'CLIENT_EDIT': 'Cliente Editado',
+            'CLIENT_DELETE': 'Cliente Eliminado',
+            'TUTOR_ADD': 'Tutor Nuevo',
             'PRODUCT_ADD': 'Producto Nuevo',
+            'PRODUCT_CREATE': 'Producto Nuevo',
+            'PRODUCT_ADD_BULK': 'Carga Masiva (CSV)',
+            'PRODUCT_UPDATE': 'Producto Editado',
+            'PRODUCT_DELETE': 'Producto Eliminado',
+            'EMAIL_SENT': 'Correo Enviado',
             'SUPPLIER_ADD': 'Proveedor Nuevo',
+            'SUPPLIER_EDIT': 'Proveedor Editado',
+            'SUPPLIER_DELETE': 'Proveedor Eliminado',
+            'USER_ADD': 'Usuario Nuevo',
+            'USER_EDIT': 'Usuario Editado',
+            'USER_DELETE': 'Usuario Eliminado',
+            'USER_ACTIVATE': 'Usuario Activado',
+            'USER_DEACTIVATE': 'Usuario Desactivado',
+            'USER_UNLOCK': 'Usuario Desbloqueado',
+            'USER_BLOCK': 'Usuario Bloqueado',
+            'USER_PASSWORD_CHANGE': 'Clave Cambiada',
+            'BRANCH_ADD': 'Sucursal Nueva',
+            'BRANCH_UPDATE': 'Sucursal Editada',
+            'BRANCH_DELETE': 'Sucursal Eliminada',
+            'LOGIN': 'Inicio de Sesión',
+            'LOGIN_FAILED': 'Sesión Fallida',
+            'LOGOUT': 'Cierre de Sesión',
+            'PASSWORD_RESET': 'Clave Restablecida',
+            'SECURITY_LOGIN_FAIL': 'Sesión Fallida',
+            'SECURITY_LOGIN_SUCCESS': 'Login Exitoso',
+            'SECURITY_LOCKOUT': 'Cuenta Bloqueada (Seguridad)',
+            'SECURITY_BLOCKED_ACCESS': 'Intento Cuenta Bloqueada',
+            'SECURITY_INACTIVE_ACCESS': 'Intento Cuenta Inactiva',
+            'SECURITY_SETTING_CHANGE': 'Seguridad: Cambio',
+            'ROLE_UPDATE': 'Seguridad: Roles',
+            'PERMISSION_UPDATE': 'Seguridad: Permisos',
+            'CONSULTATION_ADD': 'Consulta Médica',
+            'CONSULTATION_EDIT': 'Consulta Editada',
+            'CONSULTATION_DELETE': 'Consulta Eliminada',
+            'EXAM_ADD': 'Examen Nuevo',
+            'EXAM_EDIT': 'Examen Editado',
+            'EXAM_DELETE': 'Examen Eliminado',
+            'DELIVERY_ADD': 'Despacho Nuevo',
+            'DELIVERY_STATUS_UPDATE': 'Estado Despacho',
+            'DELIVERY_DELETE': 'Despacho Eliminado',
+            'APPOINTMENT_ADD': 'Cita Agendada',
+            'APPOINTMENT_DELETE': 'Cita Eliminada',
         };
-        return labels[actionType] || actionType;
+        return labels[type] || type.replace(/_/g, ' ');
     };
 
     return (
@@ -240,23 +338,27 @@ const ActivityHistory = () => {
                     </div>
 
                     {/* Date Navigator */}
-                    <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
                         <button
                             onClick={handlePrevDay}
-                            className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
                         >
                             <ChevronLeft size={20} />
                         </button>
 
-                        <div className="px-4 text-center min-w-[200px]">
-                            <span className="block font-bold text-gray-800 capitalize text-sm">
-                                {currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        <div className="px-4 py-1 text-center min-w-[200px]">
+                            <span className="block font-bold text-gray-800 capitalize">
+                                {currentDate.toLocaleDateString("es-ES", {
+                                    weekday: "long",
+                                    day: "numeric",
+                                    month: "long",
+                                })}
                             </span>
                         </div>
 
                         <button
                             onClick={handleNextDay}
-                            className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
                         >
                             <ChevronRight size={20} />
                         </button>
@@ -275,9 +377,10 @@ const ActivityHistory = () => {
                             <option value="SALE">Ventas</option>
                             <option value="INVENTORY_MOVE">Movimientos Inventario</option>
                             <option value="APPOINTMENT">Citas</option>
-                            <option value="PATIENT_ADD">Pacientes</option>
-                            <option value="CLIENT_ADD">Clientes</option>
-                            <option value="PRODUCT_ADD">Productos</option>
+                            <option value="PATIENT_ADD">Pacientes (Altas)</option>
+                            <option value="CLIENT_ADD">Clientes (Altas)</option>
+                            <option value="PRODUCT_ADD">Productos (Altas)</option>
+                            <option value="CLIENT_DELETE">Eliminaciones</option>
                         </select>
                     </div>
 
@@ -359,10 +462,7 @@ const ActivityHistory = () => {
                             {activities.map(activity => (
                                 <tr key={activity._id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 text-gray-600">
-                                        {new Date(activity.created_at).toLocaleTimeString('es-CL', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
+                                        {formatTime(activity.created_at)}
                                     </td>
                                     <td className="px-4 py-3 font-medium text-gray-800">
                                         {activity.user_name}

@@ -4,13 +4,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
-import { formatPhoneNumber } from '../../utils/formatters';
+import { formatPhoneNumber, capitalizeWords, cleanName } from '../../utils/formatters';
 
 const schema = z.object({
-    full_name: z.string().min(1, "Nombre requerido"),
-    phone: z.string().min(1, "Teléfono requerido"),
+    first_name: z.string().min(1, "Nombre requerido").max(15, "Máximo 15 caracteres").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Solo letras permitidas"),
+    last_name: z.string().min(1, "Apellido requerido").max(15, "Máximo 15 caracteres").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Solo letras permitidas"),
+    phone: z.string().min(1, "Teléfono requerido").regex(/^\+56 9 \d{4} \d{4}$/, "Formato: +56 9 XXXX XXXX"),
     email: z.string().email("Email inválido").optional().or(z.literal('')),
-    address: z.string().optional(),
     notes: z.string().optional(),
 });
 
@@ -23,6 +23,9 @@ const TutorForm = () => {
 
     const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
         resolver: zodResolver(schema),
+        defaultValues: {
+            phone: '+56 9 '
+        }
     });
 
     useEffect(() => {
@@ -41,7 +44,11 @@ const TutorForm = () => {
             if (isEdit) {
                 await api.put(`/tutors/${id}`, data);
             } else {
-                await api.post('/tutors', data);
+                await api.post('/tutors/', {
+                    ...data,
+                    is_tutor: true,
+                    is_client: false
+                });
             }
             navigate('/tutores');
         } catch (error) {
@@ -60,27 +67,40 @@ const TutorForm = () => {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                             <input
-                                {...register('full_name')}
+                                {...register('first_name')}
+                                maxLength={15}
+                                onChange={(e) => setValue('first_name', capitalizeWords(cleanName(e.target.value)))}
                                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                             />
-                            {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
+                            {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name.message}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
                             <input
-                                {...register('phone')}
-                                onChange={(e) => {
-                                    const formatted = formatPhoneNumber(e.target.value);
-                                    setValue('phone', formatted);
-                                }}
-                                placeholder="+569 1234 5678"
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                {...register('last_name')}
+                                maxLength={15}
+                                onChange={(e) => setValue('last_name', capitalizeWords(cleanName(e.target.value)))}
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                             />
-                            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                            {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name.message}</p>}
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                        <input
+                            {...register('phone')}
+                            onChange={(e) => {
+                                const formatted = formatPhoneNumber(e.target.value);
+                                setValue('phone', formatted);
+                            }}
+                            placeholder="+56 9 1234 5678"
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                        {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
                     </div>
 
                     <div>
@@ -93,13 +113,7 @@ const TutorForm = () => {
                         {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                        <input
-                            {...register('address')}
-                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                    </div>
+                    {/* Address field removed as requested */}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>

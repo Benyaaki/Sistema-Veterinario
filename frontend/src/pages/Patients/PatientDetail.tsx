@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
-import { ArrowLeft, FileText, Activity, Beaker, Pill, Edit2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, FileText, Activity, Beaker, Pill, Edit2, Image as ImageIcon, Calendar } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import ConsultationsTab from './tabs/ConsultationsTab';
 import ExamsTab from './tabs/ExamsTab';
 import PrescriptionsTab from './tabs/PrescriptionsTab';
@@ -12,8 +13,10 @@ const PatientDetail = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { hasPermission } = useAuth();
     const [patient, setPatient] = useState<any>(null);
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'summary');
+    const canListPatients = hasPermission('patients');
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -52,23 +55,33 @@ const PatientDetail = () => {
             {/* Header */}
             <div className="mb-6">
                 <button
-                    onClick={() => navigate('/pacientes')}
+                    onClick={() => navigate(canListPatients ? '/pacientes' : '/agenda')}
                     className="flex items-center text-gray-500 hover:text-gray-900 mb-2 transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-1" /> Volver a Pacientes
+                    {canListPatients ? (
+                        <>
+                            <ArrowLeft className="w-4 h-4 mr-1" /> Volver a Pacientes
+                        </>
+                    ) : (
+                        <>
+                            <Calendar className="w-4 h-4 mr-1" /> Volver a Agenda
+                        </>
+                    )}
                 </button>
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">{patient.name}</h1>
                         <p className="text-gray-500">{patient.species} - {patient.breed} - {patient.sex} {patient.weight && `- ${patient.weight}kg`}</p>
                     </div>
-                    <Link
-                        to={`/pacientes/editar/${patient._id}`}
-                        className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-                    >
-                        <Edit2 className="w-4 h-4" />
-                        <span className="font-medium">Editar Información</span>
-                    </Link>
+                    {canListPatients && (
+                        <Link
+                            to={`/pacientes/editar/${patient._id}`}
+                            className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                            <span className="font-medium">Editar Información</span>
+                        </Link>
+                    )}
                 </div>
             </div>
 

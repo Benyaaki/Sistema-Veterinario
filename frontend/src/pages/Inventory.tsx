@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { inventoryService, type Stock, type Product, productsService } from '../api/services';
 import {
-    Search, RefreshCw, Edit, Plus, Package
+    Search, RefreshCw, Edit, Plus, Package, Trash2
 } from 'lucide-react';
 import FileImporter from '../components/FileImporter';
 import { useBranch } from '../context/BranchContext';
@@ -15,32 +15,27 @@ const Inventory = () => {
     const [products, setProducts] = useState<Map<string, Product>>(new Map());
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
-    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
 
     // Modal State
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
 
     const loadData = async () => {
-        if (!currentBranch) return;
         setLoading(true);
         try {
-            // Fetch Products and Stocks
-            const [stockData, productData] = await Promise.all([
-                inventoryService.getStock({ branch_id: currentBranch.id || currentBranch._id }),
-                productsService.getAll({ search })
-            ]);
-
+            // Fetch Products always
+            const productData = await productsService.getAll({ search });
             const pMap = new Map<string, Product>();
             productData.forEach((p: Product) => pMap.set(p.id || p._id || '', p));
             setProducts(pMap);
 
-            // Filter stocks to match search (if items found)
-            if (search) {
-                const pIds = new Set(productData.map((p: Product) => p.id || p._id));
-                setStocks(stockData.filter((s: Stock) => pIds.has(s.product_id)));
-            } else {
+            // Fetch Stock only if branch selected
+            if (currentBranch) {
+                const stockData = await inventoryService.getStock({ branch_id: currentBranch.id || currentBranch._id });
                 setStocks(stockData);
+            } else {
+                setStocks([]);
             }
 
         } catch (error) {
@@ -54,36 +49,34 @@ const Inventory = () => {
         loadData();
     }, [currentBranch, search]);
 
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedItems(new Set(stocks.map(s => s.product_id)));
-        } else {
-            setSelectedItems(new Set());
-        }
-    };
 
-    const handleSelect = (id: string) => {
-        const newSet = new Set(selectedItems);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setSelectedItems(newSet);
-    };
 
     const handleEditProduct = (product: Product) => {
         setProductToEdit(product);
         setIsProductModalOpen(true);
     };
 
+    const handleDeleteProduct = async (id: string) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+        try {
+            await productsService.delete(id);
+            alert('Producto eliminado correctamente');
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert('Error al eliminar producto');
+        }
+    };
+
     // Calculate derived data
-    const tableRows = stocks.map(stock => {
-        const product = products.get(stock.product_id);
-        if (!product) return null;
+    const tableRows = Array.from(products.values()).map(product => {
+        const stock = stocks.find(s => s.product_id === (product.id || product._id));
         return {
             ...product,
-            stockQty: stock.quantity,
-            stockId: (stock as any)._id || stock.id
+            stockQty: stock ? stock.quantity : 0,
+            stockId: stock ? (stock.id || (stock as any)._id) : undefined
         };
-    }).filter(files => files !== null);
+    });
 
     return (
         <div className="p-6 space-y-4">
@@ -136,55 +129,79 @@ const Inventory = () => {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-brand-surface text-gray-500 font-medium border-b border-brand-accent/20">
                         <tr>
-                            <th className="p-3 w-4">
-                                <input type="checkbox" onChange={handleSelectAll} checked={stocks.length > 0 && selectedItems.size === stocks.length} />
-                            </th>
-                            <th className="p-3 text-xs">Id</th>
+
+                            <th className="p-3 text-xs">ID</th>
                             <th className="p-3 text-xs">UPC/EAN/ISBN</th>
                             <th className="p-3 text-xs">Nombre Artículo</th>
                             <th className="p-3 text-xs">Categoría</th>
                             <th className="p-3 text-xs">Nombre de la Compañía</th>
                             <th className="p-3 text-xs">Precio de Compra</th>
                             <th className="p-3 text-xs">Precio de Venta</th>
-                            <th className="p-3 text-xs text-gray-500">IVA (19%)</th>
-                            {/* Removed Quantity Column as requested */}
-                            <th className="p-3 text-center text-xs">Editar</th>
+                            <th className="p-3 text-xs text-gray-500">IVA</th>
+                            <th className="p-3 text-xs text-center uppercase tracking-wider">Stock</th>
+                            <th className="p-3 text-center text-xs">Acción</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {loading && (
-                            <tr><td colSpan={10} className="p-8 text-center text-gray-500">Cargando inventario...</td></tr>
+                            <tr><td colSpan={11} className="p-8 text-center text-gray-500">Cargando inventario...</td></tr>
                         )}
-                        {!loading && Array.from(products.values()).length === 0 && (
+                        {!loading && tableRows.length === 0 && (
                             <tr><td colSpan={10} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
                         )}
-                        {Array.from(products.values()).map((product: any) => {
+                        {tableRows.map((product: any) => {
                             return (
                                 <tr key={product.id || product._id} className="hover:bg-brand-surface/50 transition-colors">
+                                    <td className="p-3 text-gray-400 font-mono text-[10px]">{product.external_id || '-'}</td>
+                                    <td className="p-3 text-gray-400 font-mono text-[10px]">{product.sku || '-'}</td>
                                     <td className="p-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedItems.has(product.id || product._id)}
-                                            onChange={() => handleSelect(product.id || product._id)}
-                                        />
+                                        <div className="flex items-center gap-3">
+                                            {product.avatar ? (
+                                                <img src={product.avatar} alt="" className="w-8 h-8 rounded border object-cover bg-white" />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded border bg-gray-50 flex items-center justify-center text-gray-300">
+                                                    <Package size={14} />
+                                                </div>
+                                            )}
+                                            <span className="font-bold text-gray-900 leading-tight">{product.name}</span>
+                                        </div>
                                     </td>
-                                    <td className="p-3 text-gray-500 text-xs font-mono">{(product.id || product._id).substring(0, 8)}...</td>
-                                    <td className="p-3 text-gray-900">{product.sku || '-'}</td>
-                                    <td className="p-3 font-medium text-purple-900">{product.name}</td>
-                                    <td className="p-3 text-gray-600">{product.category || 'General'}</td>
-                                    <td className="p-3 text-gray-600">{product.supplier_name || '-'}</td>
-                                    <td className="p-3 text-gray-900">${product.purchase_price?.toLocaleString() || '0'}</td>
-                                    <td className="p-3 text-gray-900">${product.sale_price?.toLocaleString() || '0'}</td>
-                                    <td className="p-3 text-gray-600 text-xs">${product.sale_price ? Math.round(product.sale_price - (product.sale_price / 1.19)).toLocaleString() : '0'}</td>
-                                    {/* Removed Quantity Cell */}
+                                    <td className="p-3 text-gray-600 text-xs">
+                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{product.category || 'General'}</span>
+                                    </td>
+                                    <td className="p-3 text-gray-500 text-xs max-w-[150px] truncate">{product.supplier_name || '-'}</td>
+                                    <td className="p-3 text-gray-900 font-mono text-xs">${product.purchase_price?.toLocaleString() || '0'}</td>
+                                    <td className="p-3 text-gray-900 font-bold font-mono text-xs">${product.sale_price?.toLocaleString() || '0'}</td>
+                                    <td className="p-3 text-gray-500 text-[10px] font-mono whitespace-nowrap">
+                                        {product.tax_percent > 0
+                                            ? `$${Math.round(product.sale_price - (product.sale_price / (1 + (product.tax_percent / 100)))).toLocaleString()} (${product.tax_percent}%)`
+                                            : '-'
+                                        }
+                                    </td>
+                                    <td className="p-3 text-center font-bold">
+                                        <span className={product.stockQty <= (product.stock_alert_threshold || 5) ? 'text-red-500' : 'text-green-600'}>
+                                            {product.stockQty}
+                                        </span>
+                                    </td>
                                     <td className="p-3 text-center">
-                                        <button
-                                            onClick={() => handleEditProduct(product)}
-                                            className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
-                                            title="Editar Producto"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
+                                        <div className="flex justify-center gap-2">
+                                            <button
+                                                onClick={() => handleEditProduct(product)}
+                                                className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
+                                                title="Editar Producto"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            {hasRole('admin') && (
+                                                <button
+                                                    onClick={() => handleDeleteProduct(product.id || product._id)}
+                                                    className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
+                                                    title="Eliminar Producto"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             )

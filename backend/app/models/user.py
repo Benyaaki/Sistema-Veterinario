@@ -1,5 +1,5 @@
 from beanie import Document, before_event, Replace, Insert, Save, SaveChanges, PydanticObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from pydantic import Field
 
@@ -13,10 +13,17 @@ class User(Document):
     roles: List[str] = []
     branch_id: Optional[PydanticObjectId] = None  # Branch assignment for non-admin users
     signature_file_id: Optional[str] = None
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_login: Optional[datetime] = None
+    failed_attempts: int = 0
+    lockout_count: int = 0
+    is_blocked: bool = False
+    is_active: bool = True
+    blocked_at: Optional[datetime] = None
     reset_token: Optional[str] = None
     reset_token_expiry: Optional[datetime] = None
     permissions: List[str] = []
+    show_unlock_notice: bool = False
 
     class Settings:
         name = "users"

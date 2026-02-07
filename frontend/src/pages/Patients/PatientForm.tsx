@@ -5,10 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { DogBreeds } from '../../data/dogBreeds';
+import { capitalizeWords, cleanName } from '../../utils/formatters';
 
 // Schema with refinement for conditional validation
 const schema = z.object({
-    name: z.string().min(1, "Nombre requerido"),
+    name: z.string().min(1, "Nombre requerido").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Solo letras permitidas"),
     species: z.string().min(1, "Especie requerida"), // Changed to generic string to support "Otro" logic better if needed, but keeping enum values in UI
     custom_species: z.string().optional(),
     breed: z.string().optional(),
@@ -64,7 +65,7 @@ const PatientForm = () => {
         : [];
 
     useEffect(() => {
-        api.get('/tutors?limit=100').then(({ data }) => setTutors(data));
+        api.get('/tutors?limit=1000&role=tutor').then(({ data }) => setTutors(data));
 
         if (isEdit) {
             api.get(`/patients/${id}`).then(({ data }) => {
@@ -135,7 +136,11 @@ const PatientForm = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="label">Nombre *</label>
-                                <input {...register('name')} className="input" />
+                                <input
+                                    {...register('name')}
+                                    className="input"
+                                    onChange={(e) => setValue('name', capitalizeWords(cleanName(e.target.value)))}
+                                />
                                 {errors.name && <span className="error">{errors.name.message}</span>}
                             </div>
 
@@ -159,12 +164,22 @@ const PatientForm = () => {
                                 <>
                                     <div>
                                         <label className="label">Especifique Especie *</label>
-                                        <input {...register('custom_species')} className="input" placeholder="Ej. Conejo, Hamster..." />
+                                        <input
+                                            {...register('custom_species')}
+                                            className="input"
+                                            placeholder="Ej. Conejo, Hamster..."
+                                            onChange={(e) => setValue('custom_species', capitalizeWords(e.target.value))}
+                                        />
                                         {errors.custom_species && <span className="error">{errors.custom_species.message}</span>}
                                     </div>
                                     <div>
                                         <label className="label">Raza (Opcional)</label>
-                                        <input {...register('breed')} className="input" placeholder="Raza o tipo" />
+                                        <input
+                                            {...register('breed')}
+                                            className="input"
+                                            placeholder="Raza o tipo"
+                                            onChange={(e) => setValue('breed', capitalizeWords(e.target.value))}
+                                        />
                                     </div>
                                 </>
                             ) : (
@@ -182,7 +197,12 @@ const PatientForm = () => {
                                             ))}
                                         </select>
                                     ) : (
-                                        <input {...register('breed')} className="input" placeholder="Ej. Siames / Común" />
+                                        <input
+                                            {...register('breed')}
+                                            className="input"
+                                            placeholder="Ej. Siames / Común"
+                                            onChange={(e) => setValue('breed', capitalizeWords(e.target.value))}
+                                        />
                                     )}
                                     {errors.breed && <span className="error">{errors.breed.message}</span>}
                                 </div>
@@ -260,7 +280,7 @@ const PatientForm = () => {
                                 <select {...register('tutor_id')} className="input">
                                     <option value="">Seleccionar Tutor...</option>
                                     {tutors.map(t => (
-                                        <option key={t._id} value={t._id}>{t.full_name} - {t.phone}</option>
+                                        <option key={t._id} value={t._id}>{t.first_name} {t.last_name} - {t.phone}</option>
                                     ))}
                                 </select>
                                 {errors.tutor_id && <span className="error">{errors.tutor_id.message}</span>}
@@ -273,7 +293,7 @@ const PatientForm = () => {
                                 <select {...register('tutor2_id')} className="input">
                                     <option value="">Ninguno</option>
                                     {tutors.map(t => (
-                                        <option key={t._id} value={t._id}>{t.full_name} - {t.phone}</option>
+                                        <option key={t._id} value={t._id}>{t.first_name} {t.last_name} - {t.phone}</option>
                                     ))}
                                 </select>
                             </div>

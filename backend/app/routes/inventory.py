@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional
 from beanie import PydanticObjectId
 from app.models.stock import Stock
@@ -37,10 +37,13 @@ class InventoryMovementCreate(BaseModel):
     reference_sale_id: Optional[str] = None
 
 @router.post("/movements", response_model=InventoryMovement)
-async def create_movement(data: InventoryMovementCreate, user: User = Depends(get_current_user)):
+async def create_movement(request: Request, data: InventoryMovementCreate, user: User = Depends(get_current_user)):
     # Validate Permissions
-    if "sales" not in user.roles and "admin" not in user.roles:
+    if "inventory" not in user.permissions and "admin" not in user.roles:
          raise HTTPException(status_code=403, detail="Not authorized")
+
+    # [Logic for movement remains the same, omitted for brevity but should be kept in real implementation]
+    # I will just wrap the existing logic and update the log.
 
     # Prepare Document Data
     doc_data = data.model_dump()
@@ -80,11 +83,11 @@ async def create_movement(data: InventoryMovementCreate, user: User = Depends(ge
         if not stock:
              raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Check negative stock
-        if stock.quantity < movement.quantity:
-            # Allow negative only if Admin
-            if "admin" not in user.roles and "superadmin" not in user.roles:
-                raise HTTPException(status_code=400, detail="Insufficient stock")
+        # We allow negative stock for all users as requested
+        # if stock.quantity < movement.quantity:
+        #     # Allow negative only if Admin
+        #     if "admin" not in user.roles and "superadmin" not in user.roles:
+        #         raise HTTPException(status_code=400, detail="Insufficient stock")
         
         stock.quantity -= movement.quantity
         await stock.save()
@@ -99,9 +102,10 @@ async def create_movement(data: InventoryMovementCreate, user: User = Depends(ge
         if not source:
             raise HTTPException(status_code=404, detail="Source stock not found")
         
-        if source.quantity < movement.quantity:
-             if "admin" not in user.roles and "superadmin" not in user.roles:
-                raise HTTPException(status_code=400, detail="Insufficient source stock")
+        # We allow negative stock for all users as requested
+        # if source.quantity < movement.quantity:
+        #      if "admin" not in user.roles and "superadmin" not in user.roles:
+        #         raise HTTPException(status_code=400, detail="Insufficient source stock")
 
         if not dest:
             dest = Stock(branch_id=movement.to_branch_id, product_id=movement.product_id, quantity=0)
@@ -129,8 +133,10 @@ async def create_movement(data: InventoryMovementCreate, user: User = Depends(ge
         user=user,
         action_type="INVENTORY_MOVE",
         description=desc,
-        branch_id=movement.to_branch_id or movement.from_branch_id, # ambiguous for transfer, default to dest or source
-        reference_id=str(movement.id)
+        branch_id=movement.to_branch_id or movement.from_branch_id,
+        reference_id=str(movement.id),
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
     )
 
     return movement

@@ -298,10 +298,10 @@ const UsersSettings = ({ currentUser }: any) => {
                     <input {...register('password')} type="password" className="input" placeholder="Contraseña" required />
                     <select {...register('role')} className="input">
                         <option value="assistant">Asistente</option>
-                        <option value="vet">Veterinario</option>
-                        <option value="groomer">Peluquero</option>
-                        <option value="sales">Vendedor</option>
-                        <option value="admin">Administrador</option>
+                        <option value="vet">Veterinario/a</option>
+                        <option value="groomer">Peluquero/a</option>
+                        <option value="sales">Vendedor/a</option>
+                        <option value="admin">Administrador/a</option>
                     </select>
                 </div>
                 <div className="flex justify-end">
@@ -319,7 +319,15 @@ const UsersSettings = ({ currentUser }: any) => {
                             </div>
                             <div>
                                 <p className="font-medium text-gray-900">{u.name} {u.id === currentUser?.id && '(Tú)'}</p>
-                                <p className="text-sm text-gray-500">{u.email} • <span className="capitalize">{u.role}</span></p>
+                                <p className="text-sm text-gray-500">{u.email} • <span>
+                                    {{
+                                        'admin': 'Administrador/a',
+                                        'superadmin': 'Super Administrador/a',
+                                        'vet': 'Veterinario/a',
+                                        'groomer': 'Peluquero/a',
+                                        'sales': 'Vendedor/a'
+                                    }[u.role?.toLowerCase() as string] || u.role}
+                                </span></p>
                             </div>
                         </div>
                         {u.id !== currentUser?.id && (

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, Scissors, Stethoscope, DollarSign, MapPin } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, Scissors, Stethoscope, MapPin } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { useBranch } from '../context/BranchContext';
 
 const Agenda = () => {
     const { currentBranch } = useBranch();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<any[]>([]);
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,7 +21,6 @@ const Agenda = () => {
     const [rescheduleData, setRescheduleData] = useState({ date: '', time: '' });
     const [patients, setPatients] = useState<any[]>([]);
     const [formData, setFormData] = useState({
-        patient_id: '',
         patient_id: '',
         time: '10:00',
         reason: 'Consulta General',
@@ -39,14 +39,17 @@ const Agenda = () => {
                 const res = await api.get('/branches');
                 setBranches(res.data);
                 // Default to first available branch if current not set, or keep 'all'
-                // If we want to default to user's branch:
-                // if (currentBranch) setFilterBranchId(currentBranch.id || currentBranch._id);
+                // If branchId is in URL, use it
+                const branchIdParam = searchParams.get('branchId');
+                if (branchIdParam) {
+                    setFilterBranchId(branchIdParam);
+                }
             } catch (e) {
                 console.error(e);
             }
         };
         loadBranches();
-    }, []);
+    }, [searchParams]);
 
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -115,9 +118,19 @@ const Agenda = () => {
                 return;
             }
 
+            // Service Support Validation
+            const targetBranch = branches.find(b => (b.id || b._id) === targetBranchId);
+            if (agendaType === 'VET' && targetBranch && !targetBranch.supports_veterinary) {
+                alert(`Esta sucursal no admite agendas para veterinaria.`);
+                return;
+            }
+            if (agendaType === 'GROOMING' && targetBranch && !targetBranch.supports_grooming) {
+                alert(`Esta sucursal no admite agendas para peluquería.`);
+                return;
+            }
+
             await api.post('/consultations', {
                 patient_id: formData.patient_id,
-                date: finalDate.toISOString(),
                 date: finalDate.toISOString(),
                 reason: agendaType === 'GROOMING' ? formData.service : formData.reason,
                 notes: formData.notes,
@@ -125,7 +138,6 @@ const Agenda = () => {
                 appointment_type: agendaType
             });
 
-            setShowModal(false);
             setShowModal(false);
             setFormData(prev => ({ ...prev, patient_id: '', time: '10:00', reason: 'Consulta General', service: 'Baño', notes: '' }));
             fetchEvents(); // Refresh calendar
@@ -397,7 +409,7 @@ const Agenda = () => {
                             if (filterBranchId !== 'all') {
                                 setFormData(prev => ({ ...prev, branch_id: filterBranchId }));
                             } else if (currentBranch) {
-                                setFormData(prev => ({ ...prev, branch_id: currentBranch.id || currentBranch._id }));
+                                setFormData(prev => ({ ...prev, branch_id: (currentBranch.id || currentBranch._id || '') }));
                             }
                             setShowModal(true);
                         }}

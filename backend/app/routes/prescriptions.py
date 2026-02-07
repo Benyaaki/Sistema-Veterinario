@@ -138,14 +138,9 @@ async def generate_prescription_pdf(id: str, user = Depends(get_current_user)):
     c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y_info, "Responsable:")
     c.setFont("Helvetica", 11)
-    c.drawString(120, y_info, tutor.full_name if tutor else "Unknown")
+    c.drawString(120, y_info, f"{tutor.first_name} {tutor.last_name}" if tutor else "Unknown")
     
-    # Row 2: Dirección
-    y_info -= line_spacing
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y_info, "Dirección:")
-    c.setFont("Helvetica", 11)
-    c.drawString(120, y_info, tutor.address if tutor and tutor.address else "-")
+    # Dirección line removed as requested
     
     # Row 3: Paciente / Especie
     y_info -= line_spacing

@@ -26,6 +26,16 @@ async def get_services(user = Depends(get_current_user)):
 async def create_service(data: ServiceCreate, user = Depends(get_current_user)):
     service = Service(**data.model_dump())
     await service.insert()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="SERVICE_ADD",
+        description=f"Servicio creado: {service.name} (${service.price})",
+        reference_id=str(service.id)
+    )
+    
     return service
 
 @router.put("/{id}", response_model=Service)
@@ -43,5 +53,16 @@ async def delete_service(id: str, user = Depends(get_current_user)):
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
     
+    name = service.name
     await service.delete()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="SERVICE_DELETE",
+        description=f"Servicio eliminado: {name}",
+        reference_id=id
+    )
+    
     return {"message": "Deleted"}

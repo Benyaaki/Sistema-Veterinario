@@ -2,43 +2,57 @@ export const formatPhoneNumber = (value: string): string => {
     // 1. Clean: remove all non-numeric characters
     const cleaned = value.replace(/\D/g, '');
 
-    // 2. Normalize: If it doesn't start with 56, assume it's a local 9-digit number and add 56. 
-    // If it is 8 digits (old format), add 569.
-    // If it starts with 56, keep it.
+    // 2. Normalize
     let number = cleaned;
-
-    // Handle scenarios
     if (number.startsWith('56')) {
-        // already has country code
+        // ok
     } else if (number.startsWith('9') && number.length === 9) {
-        // 9 1234 5678 -> add 56
         number = '56' + number;
     } else if (number.length === 8) {
-        // 1234 5678 -> add 569 (assuming mobile)
         number = '569' + number;
-    } else {
-        // Default fallback, just use what we have, maybe it's incomplete
-        // But if user wants +569 enforced, we try our best.
-        if (!number.startsWith('56')) {
-            number = '56' + number;
-        }
+    } else if (number.length > 0 && !number.startsWith('56')) {
+        number = '56' + number;
     }
 
-    // 3. Format: +569 1234 5678
-    // Expecting 11 digits: 56 9 XXXX XXXX
-    // but user might be typing, so we format partially.
-
-    // Limits
-    const maxLen = 11; // 56 9 1234 5678
+    // 3. Format: +56 9 XXXX XXXX
+    const maxLen = 11;
     const limited = number.substring(0, maxLen);
 
     let formatted = '';
-    if (limited.length > 0) formatted += '+' + limited.substring(0, 3); // +569
-    if (limited.length > 3) formatted += ' ' + limited.substring(3, 7); // +569 1234
-    if (limited.length > 7) formatted += ' ' + limited.substring(7, 11); // +569 1234 5678
+    if (limited.length > 0) formatted += '+56';
+    if (limited.length > 2) {
+        const after56 = limited.substring(2);
+        if (after56.length > 0) formatted += ' ' + after56.substring(0, 1); // 9
+        if (after56.length > 1) formatted += ' ' + after56.substring(1, 5); // XXXX
+        if (after56.length > 5) formatted += ' ' + after56.substring(5, 9); // XXXX
+    }
 
-    // If input is empty, return empty
     if (value === '') return '';
-
     return formatted;
+};
+
+export const capitalizeWords = (str: string): string => {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+};
+
+export const cleanName = (value: string): string => {
+    // Keep only letters and spaces
+    return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+};
+
+export const validateName = (name: string): boolean => {
+    if (!name) return false;
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+    return nameRegex.test(name);
+};
+
+export const validatePhone = (phone: string): boolean => {
+    // Expected: +56 9 XXXX XXXX
+    const phoneRegex = /^\+56 9 \d{4} \d{4}$/;
+    return phoneRegex.test(phone);
 };

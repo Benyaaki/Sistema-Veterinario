@@ -12,6 +12,8 @@ interface CartItem extends Product {
     discountPercent: number;
     price: number;
     stock?: number;
+    professional_id?: string | null;
+    professional_name?: string | null;
 }
 
 const POS = () => {
@@ -29,14 +31,44 @@ const POS = () => {
     const [amountReceived, setAmountReceived] = useState(0);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [completedSale, setCompletedSale] = useState<any>(null);
+    const [professionals, setProfessionals] = useState<any[]>([]);
+    const [currentSession, setCurrentSession] = useState<any>(null);
+    const [checkingSession, setCheckingSession] = useState(true);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const clientSearchRef = useRef<HTMLInputElement>(null);
 
-    // Initial Focus
+    // Initial Focus and Data
     useEffect(() => {
         clientSearchRef.current?.focus();
-    }, []);
+        loadProfessionals();
+        checkCashSession();
+    }, [currentBranch]);
+
+    const loadProfessionals = async () => {
+        try {
+            const res = await api.get('/employees');
+            setProfessionals(res.data.filter((e: any) =>
+                (e.roles?.includes('vet') || e.roles?.includes('groomer') || e.role === 'vet' || e.role === 'groomer') && e.is_active
+            ));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const checkCashSession = async () => {
+        if (!currentBranch) return;
+        setCheckingSession(true);
+        try {
+            const branchId = currentBranch._id || currentBranch.id;
+            const res = await api.get(`/cash/current?branch_id=${branchId}`);
+            setCurrentSession(res.data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setCheckingSession(false);
+        }
+    };
 
     // Search Clients
     useEffect(() => {
@@ -46,7 +78,7 @@ const POS = () => {
         }
         const delay = setTimeout(async () => {
             try {
-                const res = await api.get(`/tutors?search=${clientQuery}`);
+                const res = await api.get(`/tutors?search=${clientQuery}&role=client`);
                 setClients(res.data);
             } catch (e) {
                 console.error(e);
@@ -123,18 +155,24 @@ const POS = () => {
     };
 
     const addToCart = (product: Product) => {
-        const existing = cart.find(i => i.id === product.id || i._id === product._id);
+        const productId = product.id || product._id;
+        console.log(`Adding product to cart. Name: ${product.name}, ID: ${productId}`);
+
+        // Only group if there's a valid ID and it matches
+        const existing = productId && cart.find(i => (i.id === productId || i._id === productId));
+
         if (existing) {
-            setCart(cart.map(i => (i.id === product.id || i._id === product._id) ? { ...i, quantity: i.quantity + 1 } : i));
+            setCart(cart.map(i => (i.id === productId || i._id === productId) ? { ...i, quantity: i.quantity + 1 } : i));
         } else {
-            console.log("Adding product with stock:", product.stock); // Debug
             setCart([...cart, {
                 ...product,
                 cartId: Math.random().toString(36).substr(2, 9),
                 quantity: 1,
                 discountPercent: selectedClient?.discount_percent || 0,
                 price: product.sale_price,
-                stock: product.stock // Persist stock info
+                stock: product.stock,
+                professional_id: null,
+                professional_name: null
             }]);
         }
     };
@@ -148,6 +186,14 @@ const POS = () => {
 
     const removeFromCart = (index: number) => {
         setCart(cart.filter((_, i) => i !== index));
+    };
+
+    const updateProfessional = (index: number, profId: string) => {
+        const prof = professionals.find(p => (p._id || p.id) === profId);
+        const newCart = [...cart];
+        newCart[index].professional_id = profId;
+        newCart[index].professional_name = prof ? `${prof.first_name} ${prof.last_name}` : null;
+        setCart(newCart);
     };
 
     // Totals
@@ -177,6 +223,11 @@ const POS = () => {
             return;
         }
 
+        if (paymentMethod === 'CASH' && amountReceived < grandTotal) {
+            alert('El monto recibido debe ser mayor o igual al total de la venta.');
+            return;
+        }
+
         setLoading(true);
         try {
             // Calculate totals
@@ -198,7 +249,10 @@ const POS = () => {
                         type: i.kind || 'PRODUCT',
                         quantity: i.quantity,
                         unit_price: i.price,
-                        total: itemTotal
+                        total: itemTotal,
+                        category: i.category,
+                        professional_id: i.professional_id,
+                        professional_name: i.professional_name
                     };
                 }),
                 subtotal: subtotal,
@@ -208,6 +262,7 @@ const POS = () => {
                 payment_method: paymentMethod,
                 cash_received: paymentMethod === 'CASH' ? amountReceived : null,
                 cash_change: paymentMethod === 'CASH' ? changeDue : null,
+                cash_session_id: currentSession?._id || currentSession?.id,
                 create_delivery: false
             };
 
@@ -218,7 +273,8 @@ const POS = () => {
                 ...createdSale,
                 items: saleData.items,
                 branch_name: currentBranch?.name,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                customer_email: selectedClient?.email
             });
             setShowSuccessModal(true);
 
@@ -240,9 +296,25 @@ const POS = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <ShoppingCart className="text-blue-400" /> Punto de Venta (POS)
-            </h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <ShoppingCart className="text-blue-400" /> Punto de Venta
+                </h1>
+
+                {checkingSession ? (
+                    <span className="text-sm text-gray-400 animate-pulse">Verificando caja...</span>
+                ) : currentSession ? (
+                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200 text-sm">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        Caja Abierta: <b>${currentSession.opening_balance?.toLocaleString()}</b>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1 rounded-full border border-red-200 text-sm">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        Caja Cerrada - Debe abrir caja para vender
+                    </div>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column - Main Content */}
@@ -271,7 +343,7 @@ const POS = () => {
                                                     setClientQuery('');
                                                 }}
                                             >
-                                                <div className="font-semibold text-gray-800">{c.full_name || c.name}</div>
+                                                <div className="font-semibold text-gray-800">{c.first_name ? `${c.first_name} ${c.last_name}` : c.name}</div>
                                                 <div className="text-xs text-gray-500">{c.phone}</div>
                                             </div>
                                         ))}
@@ -281,7 +353,7 @@ const POS = () => {
                         ) : (
                             <div className="flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
                                 <div>
-                                    <div className="font-semibold text-gray-800">Cliente: <span className="text-blue-700">{selectedClient.full_name || selectedClient.name}</span></div>
+                                    <div className="font-semibold text-gray-800">Cliente: <span className="text-blue-700">{selectedClient.first_name ? `${selectedClient.first_name} ${selectedClient.last_name}` : selectedClient.name}</span></div>
                                     <div className="text-xs text-gray-600">{selectedClient.phone}</div>
                                 </div>
                                 <button
@@ -322,8 +394,11 @@ const POS = () => {
                                         >
                                             <div className="flex justify-between items-center">
                                                 <div>
-                                                    <div className="font-semibold text-gray-800">{product.name}</div>
-                                                    <div className="text-xs text-gray-500">{product.sku || 'Sin SKU'}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded font-mono">ID {product.external_id || '-'}</span>
+                                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded font-mono">{product.sku || '-'}</span>
+                                                    </div>
+                                                    <div className="font-semibold text-gray-900">{product.name}</div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="font-bold text-green-600">${product.sale_price.toLocaleString()}</div>
@@ -345,6 +420,7 @@ const POS = () => {
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Ítem</th>
+                                    <th className="px-4 py-3 text-center font-semibold text-gray-700">Profesional</th>
                                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Stock</th>
                                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Cant.</th>
                                     <th className="px-4 py-3 text-right font-semibold text-gray-700">Precio</th>
@@ -356,7 +432,28 @@ const POS = () => {
                                 {cart.map((item, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-[9px] text-gray-400 font-mono">ID: {item.external_id || '-'}</span>
+                                                <span className="text-[9px] text-gray-400 font-mono">SKU: {item.sku || '-'}</span>
+                                            </div>
                                             <div className="font-medium text-gray-800">{item.name}</div>
+                                            <div className="text-[10px] text-gray-400 font-mono uppercase italic">{item.kind}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {item.kind !== 'PRODUCT' ? (
+                                                <select
+                                                    className="text-xs border rounded p-1 max-w-[120px]"
+                                                    value={item.professional_id || ''}
+                                                    onChange={(e) => updateProfessional(idx, e.target.value)}
+                                                >
+                                                    <option value="">Seleccionar...</option>
+                                                    {professionals.map(p => (
+                                                        <option key={p._id} value={p._id}>{p.first_name} {p.last_name}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <span className="text-gray-400">-</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             {item.kind === 'PRODUCT' && item.stock !== undefined ? (
@@ -466,10 +563,14 @@ const POS = () => {
                                 </div>
 
                                 {amountReceived > 0 && (
-                                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div className={`mb-4 p-3 rounded-lg border ${amountReceived >= grandTotal ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm font-semibold text-gray-700">Vuelto:</span>
-                                            <span className="text-xl font-bold text-gray-800">${changeDue.toLocaleString()}</span>
+                                            <span className="text-sm font-semibold text-gray-700">
+                                                {amountReceived >= grandTotal ? 'Vuelto:' : 'Falta:'}
+                                            </span>
+                                            <span className={`text-xl font-bold ${amountReceived >= grandTotal ? 'text-green-700' : 'text-red-600'}`}>
+                                                ${Math.abs(changeDue).toLocaleString()}
+                                            </span>
                                         </div>
                                     </div>
                                 )}
@@ -478,10 +579,10 @@ const POS = () => {
 
                         <button
                             onClick={handleCheckout}
-                            disabled={cart.length === 0 || loading}
+                            disabled={cart.length === 0 || loading || !currentSession || (paymentMethod === 'CASH' && amountReceived < grandTotal)}
                             className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                         >
-                            {loading ? 'Procesando...' : 'Completar Venta'}
+                            {loading ? 'Procesando...' : !currentSession ? 'Caja Cerrada' : 'Completar Venta'}
                         </button>
                     </div>
                 </div>

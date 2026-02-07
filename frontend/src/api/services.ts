@@ -4,6 +4,7 @@ import api from './axios';
 export interface Product {
     id?: string;
     _id?: string;
+    external_id?: number;
     name: string;
     description?: string;
     sku?: string;
@@ -11,6 +12,9 @@ export interface Product {
     sale_price: number;
     purchase_price?: number;
     tax_percent?: number;
+    avatar?: string;
+    category?: string;
+    supplier_name?: string;
     stock_alert_threshold?: number;
     is_active: boolean;
     stock?: number;
@@ -78,6 +82,14 @@ export const productsService = {
     update: async (id: string, product: Partial<Product>) => {
         const { data } = await api.put<Product>(`/products/${id}`, product);
         return data;
+    },
+    getCategories: async () => {
+        const { data } = await api.get<string[]>('/products/categories/');
+        return data;
+    },
+    delete: async (id: string) => {
+        const { data } = await api.delete(`/products/${id}`);
+        return data;
     }
 };
 
@@ -111,6 +123,10 @@ export const salesService = {
     },
     getMySales: async (params?: { start_date?: string; end_date?: string }) => {
         const { data } = await api.get<Sale[]>('/sales/my', { params });
+        return data;
+    },
+    sendSaleEmail: async (id: string) => {
+        const { data } = await api.post(`/sales/${id}/send-email`);
         return data;
     }
 };
@@ -160,8 +176,8 @@ export const usersService = {
 };
 
 export const customersService = {
-    getAll: async (params?: { search?: string }) => {
-        const { data } = await api.get<any[]>('/tutors/', { params });
+    getAll: async (params?: { search?: string; role?: string }) => {
+        const { data } = await api.get<any[]>('/tutors', { params });
         return data;
     }
 };

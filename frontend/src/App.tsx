@@ -23,9 +23,12 @@ import Clients from './pages/Clients';
 import Suppliers from './pages/Suppliers';
 import Receiving from './pages/Receiving';
 import Employees from './pages/Employees';
+import Branches from './pages/Branches';
+import SecurityManagement from './pages/SecurityManagement';
 
 import ActivityHistory from './pages/ActivityHistory';
 import StockPage from './pages/Stock';
+import Cash from './pages/Cash';
 
 function App() {
   return (
@@ -44,6 +47,7 @@ function App() {
                 <Route path="/ventas/nueva" element={<POS />} />
                 <Route path="/ventas/mis-ventas" element={<MyDailySales />} />
                 <Route path="/ventas/historial" element={<SalesHistory />} />
+                <Route path="/ventas/caja" element={<Cash />} />
                 <Route path="/inventario" element={<Inventory />} />
                 <Route path="/stock" element={<StockPage />} />
                 <Route path="/despachos" element={<Deliveries />} />
@@ -55,7 +59,9 @@ function App() {
                 {/* Clients (Tutors for Sales) */}
                 <Route path="/clientes" element={<Clients />} />
                 <Route path="/empleados" element={<Employees />} />
+                <Route path="/sucursales" element={<Branches />} />
                 <Route path="/proveedores" element={<Suppliers />} />
+                <Route path="/seguridad" element={<SecurityManagement />} />
 
                 <Route path="/tutores" element={<TutorsList />} />
                 <Route path="/tutores/crear" element={<TutorForm />} />

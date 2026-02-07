@@ -1,7 +1,7 @@
 from beanie import Document, PydanticObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class SaleItem(BaseModel):
     product_id: Optional[PydanticObjectId] = None
@@ -10,6 +10,9 @@ class SaleItem(BaseModel):
     quantity: int
     unit_price: float
     total: float
+    category: Optional[str] = None # For Task 1 (Reports by Category)
+    professional_id: Optional[PydanticObjectId] = None # For Task 2 (Commissions)
+    professional_name: Optional[str] = None
 
 class Sale(Document):
     branch_id: PydanticObjectId
@@ -23,6 +26,7 @@ class Sale(Document):
     payment_method: str # CASH, TRANSFER, DEBIT, CREDIT, DUE
     cash_received: Optional[float] = None
     cash_change: Optional[float] = None
+    cash_session_id: Optional[PydanticObjectId] = None # For Task 6 & 7 (Caja)
     
     
     channel: str = "STORE" # STORE, DELIVERY
@@ -32,7 +36,7 @@ class Sale(Document):
     voided_at: Optional[datetime] = None
 
     created_by: PydanticObjectId
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "sales"

@@ -15,7 +15,7 @@ const Employees = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/auth/users'); // Assuming this endpoint returns all users
+            const res = await api.get('/users/');
             setUsers(res.data);
         } catch (error) {
             console.error("Error fetching users", error);
@@ -42,7 +42,7 @@ const Employees = () => {
         if (!confirm(`¿Estás seguro de que deseas eliminar al empleado ${name}?`)) return;
 
         try {
-            await api.delete(`/auth/users/${id}`);
+            await api.delete(`/users/${id}`);
             alert('Empleado eliminado correctamente');
             fetchUsers();
         } catch (error: any) {
@@ -53,10 +53,10 @@ const Employees = () => {
 
     const getRoleBadge = (role: string) => {
         switch (role) {
-            case 'admin': return <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><Shield size={10} /> Admin</span>;
-            case 'veterinarian': return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-bold w-fit">Veterinario</span>;
-            case 'groomer': return <span className="bg-purple-100 text-secondary px-2 py-1 rounded-full text-xs font-bold w-fit">Peluquero</span>;
-            case 'seller': return <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold w-fit">Vendedor</span>;
+            case 'admin': return <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><Shield size={10} /> Administrador/a</span>;
+            case 'veterinarian': return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-bold w-fit">Veterinario/a</span>;
+            case 'groomer': return <span className="bg-purple-100 text-secondary px-2 py-1 rounded-full text-xs font-bold w-fit">Peluquero/a</span>;
+            case 'seller': return <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold w-fit">Vendedor/a</span>;
             default: return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs font-bold w-fit">Asistente</span>;
         }
     };
@@ -114,6 +114,7 @@ const Employees = () => {
                             <th className="px-6 py-3">Nombre</th>
                             <th className="px-6 py-3">Email</th>
                             <th className="px-6 py-3">Rol</th>
+                            <th className="px-6 py-3">Estado</th>
                             <th className="px-6 py-3">Teléfono</th>
                             <th className="px-6 py-3 text-center">Acciones</th>
                         </tr>
@@ -121,12 +122,24 @@ const Employees = () => {
                     <tbody className="divide-y divide-gray-100 text-sm">
                         {loading && <tr><td colSpan={6} className="p-8 text-center text-gray-500">Cargando...</td></tr>}
 
-                        {!loading && filteredUsers.map((user, idx) => (
-                            <tr key={user.id} className="hover:bg-brand-surface/50 transition-colors group">
+                        {!loading && filteredUsers.map((user) => (
+                            <tr
+                                key={user.id}
+                                className={`hover:bg-brand-surface/50 transition-colors group ${!user.is_active ? 'grayscale opacity-60 bg-gray-50/50' : ''}`}
+                            >
                                 <td className="px-6 py-4 font-medium text-gray-900">{user.last_name || '-'}</td>
                                 <td className="px-6 py-4 text-gray-600">{user.name}</td>
                                 <td className="px-6 py-4 text-gray-600">{user.email}</td>
                                 <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
+                                <td className="px-6 py-4">
+                                    {user.is_blocked ? (
+                                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold">Bloqueado</span>
+                                    ) : !user.is_active ? (
+                                        <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-bold">Inactivo</span>
+                                    ) : (
+                                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-bold">Activo</span>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4 text-gray-600">{user.phone || '-'}</td>
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex justify-center gap-2 opacity-100">

@@ -2,10 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import api from '../../../api/axios';
 import { Plus, Trash2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { useAuth } from '../../../context/AuthContext';
 
 const ConsultationsTab = ({ patientId, selectedConsultationId, onClearSelection }: { patientId: string, selectedConsultationId?: string, onClearSelection?: () => void }) => {
     const [consultations, setConsultations] = useState<any[]>([]);
     const [showForm, setShowForm] = useState(false);
+
+    const { hasPermission } = useAuth();
+    const canManagePatients = hasPermission('patients');
 
     // Fetch
     const fetchConsultations = () => {
@@ -21,13 +25,15 @@ const ConsultationsTab = ({ patientId, selectedConsultationId, onClearSelection 
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900">Historial de Consultas</h3>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="flex items-center space-x-2 text-sm font-medium text-primary hover:bg-brand-surface px-3 py-2 rounded-lg transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                    <span>{showForm ? 'Cancelar' : 'Nueva Consulta'}</span>
-                </button>
+                {canManagePatients && (
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        className="flex items-center space-x-2 text-sm font-medium text-primary hover:bg-brand-surface px-3 py-2 rounded-lg transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>{showForm ? 'Cancelar' : 'Nueva Consulta'}</span>
+                    </button>
+                )}
             </div>
 
             {showForm && (
@@ -45,6 +51,7 @@ const ConsultationsTab = ({ patientId, selectedConsultationId, onClearSelection 
                             onDelete={fetchConsultations}
                             defaultExpanded={c._id === selectedConsultationId}
                             onClearSelection={onClearSelection}
+                            canEdit={canManagePatients}
                         />
                     ))
                 )}
@@ -242,7 +249,7 @@ const ConsultationForm = ({ patientId, consultation, onSuccess, onCancel }: any)
     );
 };
 
-const ConsultationCard = ({ consultation, onDelete, defaultExpanded, onClearSelection }: any) => {
+const ConsultationCard = ({ consultation, onDelete, defaultExpanded, onClearSelection, canEdit }: any) => {
     const [expanded, setExpanded] = useState(defaultExpanded || false);
     const [isEditing, setIsEditing] = useState(false); // Should NOT auto-edit by default
     const formRef = useRef<HTMLDivElement>(null);
@@ -321,14 +328,16 @@ const ConsultationCard = ({ consultation, onDelete, defaultExpanded, onClearSele
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-2 space-x-3">
-                        <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-primary hover:text-primary/80 text-xs font-medium flex items-center">
-                            <FileText className="w-3 h-3 mr-1" /> Editar
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-red-500 hover:text-red-700 text-xs font-medium flex items-center">
-                            <Trash2 className="w-3 h-3 mr-1" /> Eliminar
-                        </button>
-                    </div>
+                    {canEdit && (
+                        <div className="flex justify-end pt-2 space-x-3">
+                            <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-primary hover:text-primary/80 text-xs font-medium flex items-center">
+                                <FileText className="w-3 h-3 mr-1" /> Editar
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-red-500 hover:text-red-700 text-xs font-medium flex items-center">
+                                <Trash2 className="w-3 h-3 mr-1" /> Eliminar
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

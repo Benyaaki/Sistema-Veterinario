@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 import api from '../api/axios';
+import { formatPhoneNumber, capitalizeWords, cleanName, validateName, validatePhone } from '../utils/formatters';
 
 interface EmployeeFormModalProps {
     isOpen: boolean;
@@ -42,7 +43,9 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
         role: 'assistant',
         branch_id: '',
         password: '',
-        permissions: [] as string[]
+        permissions: [] as string[],
+        is_active: true,
+        is_blocked: false
     });
     const [branches, setBranches] = useState<any[]>([]);
     const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +69,9 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                     role: userToEdit.role || 'seller',
                     branch_id: userToEdit.branch_id || '',
                     password: '', // Password blank on edit
-                    permissions: initialPermissions
+                    permissions: initialPermissions,
+                    is_active: userToEdit.is_active !== undefined ? userToEdit.is_active : true,
+                    is_blocked: userToEdit.is_blocked || false
                 });
             } else {
                 setFormData({
@@ -77,7 +82,9 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                     role: 'seller',
                     branch_id: '',
                     password: '',
-                    permissions: ROLE_PRESETS['seller'] || []
+                    permissions: ROLE_PRESETS['seller'] || [],
+                    is_active: true,
+                    is_blocked: false
                 });
             }
         }
@@ -85,7 +92,7 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
 
     const loadBranches = async () => {
         try {
-            const res = await api.get('/branches');
+            const res = await api.get('/branches/');
             setBranches(res.data);
         } catch (error) {
             console.error(error);
@@ -113,6 +120,26 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Strict Validation
+        if (!validateName(formData.name)) {
+            alert('El nombre solo debe contener letras');
+            return;
+        }
+        if (formData.last_name && !validateName(formData.last_name)) {
+            alert('El apellido solo debe contener letras');
+            return;
+        }
+        if (!validatePhone(formData.phone)) {
+            alert('El teléfono debe tener el formato: +56 9 XXXX XXXX');
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            alert('Por favor, ingresa un correo electrónico válido (ejemplo@correo.com)');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -121,7 +148,7 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                 const updateData: any = { ...formData };
                 if (!updateData.password) delete updateData.password; // Don't send empty password
 
-                await api.put(`/auth/users/${userToEdit.id}/full`, updateData);
+                await api.put(`/users/${userToEdit.id}/full`, updateData);
                 alert('Empleado actualizado correctamente');
             } else {
                 // Create
@@ -163,7 +190,7 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                                     required
                                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                     value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, name: capitalizeWords(cleanName(e.target.value)) })}
                                 />
                             </div>
                             <div>
@@ -171,7 +198,7 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                                 <input
                                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                     value={formData.last_name}
-                                    onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, last_name: capitalizeWords(cleanName(e.target.value)) })}
                                 />
                             </div>
                         </div>
@@ -192,7 +219,8 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                                 <input
                                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                     value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                                    placeholder="+56 9 XXXX XXXX"
                                 />
                             </div>
                         </div>
@@ -205,10 +233,10 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                                     value={formData.role}
                                     onChange={e => handleRoleChange(e.target.value)}
                                 >
-                                    <option value="seller">Vendedor</option>
-                                    <option value="admin">Administrador</option>
-                                    <option value="veterinarian">Veterinario</option>
-                                    <option value="groomer">Peluquero</option>
+                                    <option value="seller">Vendedor/a</option>
+                                    <option value="admin">Administrador/a</option>
+                                    <option value="veterinarian">Veterinario/a</option>
+                                    <option value="groomer">Peluquero/a</option>
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">Al cambiar el rol se reiniciarán los permisos.</p>
                             </div>
@@ -249,9 +277,43 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                             </div>
                         </div>
 
+                        {userToEdit && (
+                            <div className="pt-4 border-t border-gray-200">
+                                <h3 className="font-semibold text-gray-700 mb-3">Estado de la cuenta</h3>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 cursor-pointer hover:bg-white transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-blue-600 rounded"
+                                            checked={formData.is_active}
+                                            onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-800">Cuenta Activa</p>
+                                            <p className="text-xs text-gray-500">Si se desactiva, el empleado no podrá iniciar sesión.</p>
+                                        </div>
+                                    </label>
+
+                                    {formData.is_blocked && (
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-red-200 bg-red-50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-red-600 rounded"
+                                                checked={!formData.is_blocked}
+                                                onChange={e => setFormData({ ...formData, is_blocked: !e.target.checked })}
+                                            />
+                                            <div>
+                                                <p className="text-sm font-medium text-red-800">Desbloquear Cuenta</p>
+                                                <p className="text-xs text-red-600">Esta cuenta fue bloqueada automáticamente por intentos fallidos.</p>
+                                            </div>
+                                        </label>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6 md:hidden">
-                            {/* Mobile buttons */}
-                            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg">Suspender</button>
+                            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
                             <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg">Guardar</button>
                         </div>
                     </form>
@@ -273,8 +335,8 @@ const EmployeeFormModal = ({ isOpen, onClose, onSuccess, userToEdit }: EmployeeF
                                 <label
                                     key={perm.id}
                                     className={`flex items-center p-3 rounded-lg border transition-all cursor-pointer ${formData.permissions.includes(perm.id)
-                                            ? 'bg-white border-blue-500 shadow-sm'
-                                            : 'bg-gray-100 border-transparent hover:bg-gray-200'
+                                        ? 'bg-white border-blue-500 shadow-sm'
+                                        : 'bg-gray-100 border-transparent hover:bg-gray-200'
                                         }`}
                                 >
                                     <input

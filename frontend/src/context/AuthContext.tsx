@@ -16,7 +16,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (token: string) => Promise<void>;
+    login: (token: string, refreshToken: string) => Promise<void>;
     logout: () => void;
     hasRole: (role: string) => boolean;
     hasAnyRole: (roles: string[]) => boolean;
@@ -36,7 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const { data } = await api.get('/auth/me', { timeout: 15000 });
             setUser(data);
         } catch (error) {
-            console.error("Auth Check Failed:", error);
             localStorage.removeItem('token');
             setUser(null);
         } finally {
@@ -50,14 +49,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         else setIsLoading(false);
     }, []);
 
-    const login = async (token: string) => {
+    const login = async (token: string, refreshToken: string) => {
         localStorage.setItem('token', token);
+        localStorage.setItem('refresh_token', refreshToken);
         await fetchUser();
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        setUser(null);
+    const logout = async () => {
+        const refreshToken = localStorage.getItem('refresh_token');
+        try {
+            if (refreshToken) {
+                await api.post('/auth/logout', { refresh_token: refreshToken });
+            }
+        } catch (err) {
+            // Silently fail
+        } finally {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
+            setUser(null);
+        }
     };
 
     const hasRole = (role: string) => {

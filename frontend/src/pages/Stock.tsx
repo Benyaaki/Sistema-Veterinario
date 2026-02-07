@@ -125,6 +125,8 @@ const StockPage = () => {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-brand-surface text-gray-500 font-medium border-b border-brand-accent/20">
                             <tr>
+                                <th className="p-4 w-20">ID</th>
+                                <th className="p-4 w-32">EAN/SKU</th>
                                 <th className="p-4 w-64">Producto</th>
                                 <th className="p-4">Categoría</th>
                                 <th className="p-4 text-center bg-gray-100/50">Total Global</th>
@@ -144,11 +146,14 @@ const StockPage = () => {
                             )}
                             {pivotData.map((row: any) => (
                                 <tr key={row.id || row._id} className="hover:bg-brand-surface/50 transition-colors">
+                                    <td className="p-4 text-gray-400 font-mono text-[10px]">{row.external_id || '-'}</td>
+                                    <td className="p-4 text-gray-400 font-mono text-[10px]">{row.sku || '-'}</td>
                                     <td className="p-4">
-                                        <div className="font-semibold text-gray-900">{row.name}</div>
-                                        <div className="text-xs text-gray-500 font-mono">{row.sku}</div>
+                                        <div className="font-semibold text-gray-900 leading-tight">{row.name}</div>
                                     </td>
-                                    <td className="p-4 text-gray-600">{row.category}</td>
+                                    <td className="p-4 text-gray-600 text-xs">
+                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{row.category || 'General'}</span>
+                                    </td>
                                     <td className="p-4 text-center font-bold text-gray-800 bg-gray-50/50">
                                         {row.totalStock}
                                     </td>

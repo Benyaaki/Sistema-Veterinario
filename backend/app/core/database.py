@@ -34,5 +34,7 @@ async def init_db():
             "app.models.delivery.DeliveryOrder",
             "app.models.supplier.Supplier",
             "app.models.activity_log.ActivityLog",
+            "app.models.session.UserSession",
+            "app.models.cash_session.CashSession",
         ]
     )

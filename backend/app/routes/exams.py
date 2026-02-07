@@ -38,7 +38,8 @@ class ExamWithFiles(Exam):
 async def create_exam(data: ExamCreate, user = Depends(get_current_user)):
     try:
         pid = PydanticObjectId(data.patient_id)
-        if not await Patient.get(pid):
+        patient = await Patient.get(pid)
+        if not patient:
              raise HTTPException(status_code=404, detail="Patient not found")
     except:
         raise HTTPException(status_code=400, detail="Invalid Patient ID")
@@ -58,6 +59,16 @@ async def create_exam(data: ExamCreate, user = Depends(get_current_user)):
         
     new_exam = Exam(**exam_data)
     await new_exam.insert()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="EXAM_ADD",
+        description=f"Examen registrado: {new_exam.type} para {patient.name}",
+        reference_id=str(new_exam.id)
+    )
+    
     return new_exam
 
 @router.get("/patient/{patient_id}", response_model=List[ExamWithFiles])
@@ -113,7 +124,19 @@ async def delete_exam(id: str, user = Depends(get_current_user)):
     exam = await Exam.get(id)
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    
+    exam_type = exam.type
     await exam.delete()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="EXAM_DELETE",
+        description=f"Examen eliminado: {exam_type}",
+        reference_id=id
+    )
+    
     return {"message": "Deleted"}
 
 @router.post("/{id}/files")

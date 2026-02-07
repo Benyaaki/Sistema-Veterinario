@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
-import { Plus, Search, Edit2, Trash2, User } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, User, Edit2 } from 'lucide-react';
 import { formatPhoneNumber } from '../../utils/formatters';
 
 interface Tutor {
     _id: string;
-    full_name: string;
+    first_name: string;
+    last_name: string;
     phone: string;
     email?: string;
 }
@@ -20,7 +21,11 @@ const TutorsList = () => {
         setLoading(true);
         try {
             const { data } = await api.get('/tutors', {
-                params: { search }
+                params: {
+                    search,
+                    role: 'tutor',
+                    limit: 1000
+                }
             });
             setTutors(data);
         } catch (error) {
@@ -103,21 +108,32 @@ const TutorsList = () => {
                             ) : (
                                 tutors.map((tutor) => (
                                     <tr key={tutor._id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-gray-900">{tutor.full_name}</td>
+                                        <td className="px-6 py-4 font-medium text-gray-900">
+                                            {tutor.first_name} {tutor.last_name}
+                                        </td>
                                         <td className="px-6 py-4 text-gray-600">{formatPhoneNumber(tutor.phone)}</td>
                                         <td className="px-6 py-4 text-gray-600">{tutor.email || '-'}</td>
                                         <td className="px-6 py-4 text-right space-x-2">
                                             <Link
                                                 to={`/tutores/${tutor._id}`}
-                                                className="inline-block p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                                className="inline-block p-2 text-primary hover:bg-brand-surface rounded-lg transition-colors group"
+                                                title="Ver Ficha Completa"
                                             >
-                                                <Edit2 className="w-4 h-4" />
+                                                <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                            </Link>
+                                            <Link
+                                                to={`/tutores/editar/${tutor._id}`}
+                                                className="inline-block p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                title="Editar Datos"
+                                            >
+                                                <Edit2 className="w-5 h-5" />
                                             </Link>
                                             <button
                                                 onClick={() => handleDelete(tutor._id)}
-                                                className="inline-block p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                                className="inline-block p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Eliminar"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-5 h-5" />
                                             </button>
                                         </td>
                                     </tr>

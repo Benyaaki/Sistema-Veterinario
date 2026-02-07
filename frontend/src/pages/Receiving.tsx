@@ -213,8 +213,8 @@ const Receiving = () => {
                                     value={mode}
                                     onChange={(e: any) => setMode(e.target.value)}
                                 >
-                                    <option value="RECEIVE">📥 Recibir (Aumenta Stock)</option>
-                                    <option value="TRANSFER">🔄 Transferir a otra sucursal</option>
+                                    <option value="RECEIVE">Recibir</option>
+                                    <option value="TRANSFER">Transferir a otra sucursal</option>
                                 </select>
                             </div>
                         </div>
@@ -257,7 +257,7 @@ const Receiving = () => {
                             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                             <input
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                placeholder="Buscar producto por nombre o SKU..."
+                                placeholder="Buscar producto por nombre..."
                                 value={scanQuery}
                                 onChange={e => setScanQuery(e.target.value)}
                                 onKeyDown={handleScan}
@@ -276,7 +276,6 @@ const Receiving = () => {
                                             <div className="flex justify-between items-center">
                                                 <div>
                                                     <div className="font-semibold text-gray-800">{product.name}</div>
-                                                    <div className="text-xs text-gray-500">{product.sku || 'Sin SKU'}</div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="font-bold text-green-600">${product.purchase_price?.toLocaleString() || 0}</div>
@@ -299,7 +298,6 @@ const Receiving = () => {
                                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Stock</th>
                                     <th className="px-4 py-3 text-center font-semibold text-gray-700">Cant.</th>
                                     <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo Unit.</th>
-                                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Descuento</th>
                                     <th className="px-4 py-3 text-right font-semibold text-gray-700">Total</th>
                                     <th className="px-4 py-3"></th>
                                 </tr>
@@ -316,7 +314,6 @@ const Receiving = () => {
                                     <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-3">
                                             <div className="font-medium text-gray-800">{item.name}</div>
-                                            <div className="text-xs text-gray-500">{item.sku || 'Sin SKU'}</div>
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             {item.stock !== undefined ? (
@@ -339,17 +336,9 @@ const Receiving = () => {
                                         <td className="px-4 py-3 text-right">
                                             <input
                                                 type="number"
-                                                className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
+                                                className="w-24 px-2 py-1 border border-gray-100 bg-gray-50 rounded text-right text-gray-500 cursor-not-allowed"
                                                 value={item.cost}
-                                                onChange={e => updateItem(idx, 'cost', parseFloat(e.target.value) || 0)}
-                                            />
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <input
-                                                type="number"
-                                                className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
-                                                value={item.discount}
-                                                onChange={e => updateItem(idx, 'discount', parseFloat(e.target.value) || 0)}
+                                                readOnly
                                             />
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-gray-800">

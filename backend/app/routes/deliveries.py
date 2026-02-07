@@ -126,4 +126,14 @@ async def delete_delivery(id: str, user: User = Depends(get_current_user)):
             await sale.save()
 
     await order.delete()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="DELIVERY_DELETE",
+        description=f"Despacho eliminado (Venta ID: {str(order.sale_id)[-6:] if order.sale_id else 'N/A'})",
+        reference_id=id
+    )
+    
     return {"message": "Delivery deleted and sale voided"}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { Search, Phone, Mail, User, Info, Building, Plus, X } from 'lucide-react';
+import { Search, Phone, Mail, Info, Building, Plus, X, Trash2 } from 'lucide-react';
 import FileImporter from '../components/FileImporter';
 import { useAuth } from '../context/AuthContext';
+import { formatPhoneNumber, validatePhone } from '../utils/formatters';
 
 const Suppliers = () => {
     const { hasRole } = useAuth();
@@ -13,7 +14,6 @@ const Suppliers = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newSupplier, setNewSupplier] = useState({
         name: '',
-        contact_name: '',
         email: '',
         phone: '',
         address: '',
@@ -34,15 +34,37 @@ const Suppliers = () => {
 
     const handleCreateSupplier = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validation
+        if (newSupplier.phone && !validatePhone(newSupplier.phone)) {
+            alert('El teléfono debe tener el formato: +56 9 XXXX XXXX');
+            return;
+        }
+
         try {
             await api.post('/suppliers', newSupplier);
             alert('Proveedor creado correctamente');
             setShowCreateModal(false);
-            setNewSupplier({ name: '', contact_name: '', email: '', phone: '', address: '', rut: '' });
+            setNewSupplier({ name: '', email: '', phone: '', address: '', rut: '' });
             fetchSuppliers();
         } catch (error) {
             console.error(error);
             alert('Error al crear proveedor');
+        }
+    };
+
+    const handleDeleteSupplier = async () => {
+        if (!selectedSupplier) return;
+        if (!confirm(`¿Estás seguro de eliminar el proveedor ${selectedSupplier.name}?`)) return;
+
+        try {
+            await api.delete(`/suppliers/${selectedSupplier._id || selectedSupplier.id}`);
+            setSelectedSupplier(null);
+            fetchSuppliers();
+            alert('Proveedor eliminado correctamente');
+        } catch (error) {
+            console.error(error);
+            alert('Error al eliminar proveedor');
         }
     };
 
@@ -122,16 +144,18 @@ const Suppliers = () => {
                 <div className="w-full lg:w-1/3">
                     {selectedSupplier ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">{selectedSupplier.name}</h2>
+                            <div className="flex justify-between items-start mb-4">
+                                <h2 className="text-xl font-bold text-gray-900">{selectedSupplier.name}</h2>
+                                <button
+                                    onClick={handleDeleteSupplier}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Eliminar Proveedor"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
 
                             <div className="space-y-4">
-                                <div className="flex items-start gap-3 text-gray-700">
-                                    <User size={18} className="mt-1 text-gray-400" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Contacto</p>
-                                        <p className="font-medium">{selectedSupplier.contact_name || '-'}</p>
-                                    </div>
-                                </div>
 
                                 <div className="flex items-start gap-3 text-gray-700">
                                     <Phone size={18} className="mt-1 text-gray-400" />
@@ -187,6 +211,7 @@ const Suppliers = () => {
                                 <input
                                     type="text"
                                     required
+                                    maxLength={50}
                                     className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                                     value={newSupplier.name}
                                     onChange={e => setNewSupplier({ ...newSupplier, name: e.target.value })}
@@ -201,25 +226,15 @@ const Suppliers = () => {
                                     onChange={e => setNewSupplier({ ...newSupplier, rut: e.target.value })}
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={newSupplier.contact_name}
-                                        onChange={e => setNewSupplier({ ...newSupplier, contact_name: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={newSupplier.phone}
-                                        onChange={e => setNewSupplier({ ...newSupplier, phone: e.target.value })}
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={newSupplier.phone}
+                                    onChange={e => setNewSupplier({ ...newSupplier, phone: formatPhoneNumber(e.target.value) })}
+                                    placeholder="+56 9 XXXX XXXX"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

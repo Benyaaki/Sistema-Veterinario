@@ -1,14 +1,54 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import csv
 from io import StringIO
-from typing import List
+from typing import List, Optional
 from app.models.tutor import Tutor
 from app.models.product import Product
 from app.models.supplier import Supplier
 from app.models.branch import Branch
 from app.models.stock import Stock
+from beanie import PydanticObjectId
 
 router = APIRouter()
+
+def parse_currency(value: str, is_percentage: bool = False) -> float:
+    if not value or str(value).strip() == "":
+        return 0.0
+    
+    # Remove symbols
+    clean_val = str(value).replace('$', '').replace('%', '').strip()
+    
+    # Handle thousands/decimal separators
+    # If there's a dot AND a comma, dot is thousands, comma is decimal
+    if '.' in clean_val and ',' in clean_val:
+        clean_val = clean_val.replace('.', '').replace(',', '.')
+    elif ',' in clean_val:
+        # If there's only a comma, it's likely decimal
+        clean_val = clean_val.replace(',', '.')
+    elif '.' in clean_val:
+        # If there's only a dot, it could be thousands (1.064) or decimal (1.5)
+        # In Chile, dots are typically thousands.
+        # But for small numbers (like 19.0 or 0.19), it's likely decimal.
+        parts = clean_val.split('.')
+        if not is_percentage and len(parts[-1]) == 3:
+            # Likely thousands separator: 1.064
+            clean_val = clean_val.replace('.', '')
+        else:
+            # Likely decimal or small number: 19.0 or 1.5
+            pass
+
+    try:
+        return float(clean_val)
+    except ValueError:
+        return 0.0
+
+def get_row_val(row: dict, *possible_keys: str) -> Optional[str]:
+    """Search for a value in a dictionary with case-insensitive and stripped keys."""
+    normalized_keys = [k.strip().lower() for k in possible_keys]
+    for key, value in row.items():
+        if key and key.strip().lower() in normalized_keys:
+            return str(value) if value is not None else None
+    return None
 
 @router.post("/tutors")
 async def import_tutors(
@@ -16,69 +56,57 @@ async def import_tutors(
     delete_existing: bool = False
 ):
     if not file.filename.endswith(".txt") and not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a .txt or .csv file")
+        raise HTTPException(status_code=400, detail="El archivo debe ser .txt o .csv")
     
     if delete_existing:
         await Tutor.find_all().delete()
 
     content = await file.read()
-    
-    # Try different encodings
     decoded = ""
-    try:
-        decoded = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
+    for enc in ["utf-8-sig", "latin-1", "utf-8"]:
         try:
-            decoded = content.decode("latin-1")
-        except UnicodeDecodeError:
-            decoded = content.decode("utf-8", errors="ignore")
-
-    # Handle BOM if present
-    if decoded.startswith('\ufeff'):
-        decoded = decoded[1:]
-
-    csv_reader = csv.DictReader(StringIO(decoded))
+            decoded = content.decode(enc)
+            break
+        except:
+            continue
     
-    # Check headers to verify format or fallback
-    # Expected: Id,Apellidos,Nombre,Email,Teléfono,"Total gastado"
-    
+    if not decoded:
+        raise HTTPException(status_code=400, detail="No se pudo decodificar el archivo")
+
+    # Detect delimiter
+    delimiter = ','
+    if ';' in decoded.split('\n')[0]:
+        delimiter = ';'
+
+    csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
     tutors_to_insert = []
+    
     for row in csv_reader:
         try:
-            # Map fields
-            # "Apellidos" + "Nombre" -> full_name
-            last_name = row.get("Apellidos") or row.get("last_name") or ""
-            first_name = row.get("Nombre") or row.get("first_name") or ""
+            first_name = get_row_val(row, "Nombre", "first_name") or ""
+            last_name = get_row_val(row, "Apellidos", "last_name") or ""
+            full_name = get_row_val(row, "full_name") or f"{first_name} {last_name}".strip()
             
-            full_name = f"{first_name} {last_name}".strip()
-            if not full_name:
-                full_name = row.get("full_name") or "Cliente Sin Nombre"
+            if not first_name and not last_name and not full_name:
+                continue
 
-            phone = row.get("Teléfono") or row.get("phone") or ""
-            email = row.get("Email") or row.get("email")
+            phone = get_row_val(row, "Teléfono", "phone") or ""
+            email = get_row_val(row, "Email", "email")
+            total_spent = get_row_val(row, "Total gastado", "total_spent")
             
-            # Handle Total Gastado -> Notes
-            total_spent = row.get("Total gastado") or row.get("total_spent")
-            notes = ""
-            if total_spent:
-                notes = f"Importado. Gasto Histórico: {total_spent}"
+            notes = f"Importado. Gasto Histórico: {total_spent}" if total_spent else ""
             
-            # Additional notes if existing
-            existing_notes = row.get("notes")
-            if existing_notes:
-                notes = f"{notes} | {existing_notes}" if notes else existing_notes
-
             tutor = Tutor(
-                full_name=full_name,
+                first_name=first_name if first_name else full_name,
+                last_name=last_name if last_name else "",
                 phone=phone,
                 email=email,
-                address=row.get("address"),
-                notes=notes,  # Store historical spending here
+                notes=notes,
                 discount_percent=0.0
             )
             tutors_to_insert.append(tutor)
         except Exception as e:
-            print(f"Error parsing row {row}: {e}")
+            print(f"Error parsing tutor row: {e}")
             continue
 
     if tutors_to_insert:
@@ -91,57 +119,33 @@ async def import_products(
     file: UploadFile = File(...),
     delete_existing: bool = False
 ):
-    # ... (existing product code is fine, but I'll skip replacing it if I can target ranges, but replacing whole block is safer/easier to read here if I don't want to mess up offsets. 
-    # Actually I can just target the other functions. I'll split into two ReplaceChunks if possible, or just replace the tutor one and then the supplier one.
-    pass 
-    # WAIT, I can't leave pass here if I'm replacing content. 
-    # I will stick to replacing separate blocks or the whole file content for clarity if needed, 
-    # but `replace_file_content` checks single contiguous block.
-    # I will replace `import_tutors` first.
-
-# ... skipping this tool call construction to rethink strategy.
-# I need to replace `import_tutors` block AND `import_suppliers` block.
-# They are at top and bottom.
-# I should use `multi_replace_file_content`.
-
-@router.post("/products")
-async def import_products(
-    file: UploadFile = File(...),
-    delete_existing: bool = False
-):
     if not file.filename.endswith(".txt") and not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a .txt or .csv file")
+        raise HTTPException(status_code=400, detail="El archivo debe ser .txt o .csv")
     
     try:
-        # Optional: Clear existing products and stocks if requested
         if delete_existing:
-            print("Deleting existing data...")
             await Product.find_all().delete()
-            print("Products deleted.")
             await Stock.find_all().delete()
-            print("Stocks deleted.")
 
         content = await file.read()
-        
-        # Try different encodings
         decoded = ""
-        try:
-            decoded = content.decode("utf-8-sig")
-        except UnicodeDecodeError:
-             try:
-                decoded = content.decode("latin-1")
-             except:
-                decoded = content.decode("utf-8", errors="ignore")
+        for enc in ["utf-8-sig", "latin-1", "utf-8"]:
+            try:
+                decoded = content.decode(enc)
+                break
+            except:
+                continue
+        
+        # Detect delimiter
+        delimiter = ','
+        first_line = decoded.split('\n')[0]
+        if ';' in first_line:
+            delimiter = ';'
 
-        csv_file = StringIO(decoded)
-        csv_reader = csv.DictReader(csv_file, delimiter=',')
+        csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
         
         products_to_insert = []
-        stocks_to_insert = []
-        
-        # Cache branches to avoid repeated DB lookups
-        from app.models.branch import Branch
-        from app.models.stock import Stock
+        stocks_data = [] # List of (product_obj, {branch_name: qty})
         
         branches_cache = {}
         all_branches = await Branch.find_all().to_list()
@@ -153,91 +157,100 @@ async def import_products(
             norm_name = branch_name.upper().strip()
             if norm_name in branches_cache:
                 return branches_cache[norm_name]
-            
-            # Create new branch
             new_branch = Branch(name=branch_name, is_active=True)
             await new_branch.create()
             branches_cache[norm_name] = new_branch
             return new_branch
 
-        def parse_currency(value: str) -> float:
-            if not value:
-                return 0.0
-            clean_val = value.replace('$', '').replace('.', '').strip()
-            clean_val = clean_val.replace(',', '.')
-            try:
-                return float(clean_val)
-            except ValueError:
-                return 0.0
+        row_count = 0
+        skipped_count = 0
 
         for row in csv_reader:
+            row_count += 1
             try:
-                name = row.get("Nombre Artículo") or row.get("name")
+                name = get_row_val(row, "Nombre Artículo", "name")
                 if not name:
+                    skipped_count += 1
                     continue
 
-                sku = row.get("UPC/EAN/ISBN") or row.get("sku")
-                category = row.get("Categoría") or row.get("category")
-                supplier_name = row.get("Nombre de la Compañía") or row.get("supplier_name")
+                sku = get_row_val(row, "UPC/EAN/ISBN", "sku")
+                category = get_row_val(row, "Categoría", "category")
+                supplier_name = get_row_val(row, "Nombre de la Compañía", "supplier_name")
                 
-                p_price = parse_currency(row.get("Precio de Compra", row.get("purchase_price", "0")))
-                s_price = parse_currency(row.get("Precio de Venta", row.get("sale_price", "0")))
+                p_price = parse_currency(get_row_val(row, "Precio de Compra", "purchase_price") or "0")
+                s_price = parse_currency(get_row_val(row, "Precio de Venta", "sale_price") or "0")
+                tax = parse_currency(get_row_val(row, "Porcentaje de Impuesto(s)", "tax_percent") or "0", is_percentage=True)
+                avatar = get_row_val(row, "Avatar", "image_url")
+                
+                ext_id_str = get_row_val(row, "Id", "external_id")
+                ext_id = None
+                if ext_id_str:
+                    try:
+                        ext_id = int(float(ext_id_str))
+                    except:
+                        pass
 
                 product = Product(
+                    external_id=ext_id,
                     name=name,
                     sku=sku,
                     category=category,
                     supplier_name=supplier_name,
                     purchase_price=p_price,
                     sale_price=s_price,
+                    tax_percent=tax,
+                    avatar=avatar,
                     kind="PRODUCT",
                     is_active=True
                 )
                 products_to_insert.append(product)
                 
-                # Temp store stock data
-                product.temp_stock_data = {}
-                
+                # Parse branch stock columns
+                branch_stocks = {}
                 for key, value in row.items():
-                    if key and key.strip().replace('"', '').startswith("Cantidad en Stock"):
-                        branch_name = key.strip().replace('"', '').replace("Cantidad en Stock", "").strip()
-                        if branch_name == "VENCIMIENTO": 
-                            continue 
+                    if key and "Cantidad en Stock" in key:
+                        # Extract branch name: "Cantidad en Stock [BODEGA]" -> "BODEGA"
+                        branch_name = key.replace("Cantidad en Stock", "").replace("[", "").replace("]", "").strip()
+                        if branch_name == "VENCIMIENTO" or not branch_name:
+                            continue
                         
-                        try:
-                            qty = int(float(value)) if value else 0
-                        except ValueError:
-                            qty = 0
-                        
-                        product.temp_stock_data[branch_name] = qty
+                        qty = int(parse_currency(value or "0"))
+                        branch_stocks[branch_name] = qty
+                
+                stocks_data.append((product, branch_stocks))
 
             except Exception as e:
-                print(f"Error parsing row {row}: {e}")
+                print(f"Error parsing product row {row_count}: {e}")
+                skipped_count += 1
                 continue
 
         if products_to_insert:
+            # We must insert products first to get their IDs
             await Product.insert_many(products_to_insert)
             
-            for product in products_to_insert:
-                if hasattr(product, 'temp_stock_data'):
-                    for branch_name, qty in product.temp_stock_data.items():
-                        branch = await get_or_create_branch(branch_name)
-                        stock = Stock(
-                            branch_id=branch.id,
-                            product_id=product.id,
-                            quantity=qty
-                        )
-                        stocks_to_insert.append(stock)
+            stocks_to_insert = []
+            for product, branch_map in stocks_data:
+                for branch_name, qty in branch_map.items():
+                    branch = await get_or_create_branch(branch_name)
+                    stocks_to_insert.append(Stock(
+                        branch_id=branch.id,
+                        product_id=product.id,
+                        quantity=qty
+                    ))
+            
+            if stocks_to_insert:
+                await Stock.insert_many(stocks_to_insert)
         
-        if stocks_to_insert:
-            await Stock.insert_many(stocks_to_insert)
+        msg = f"Importación finalizada. {len(products_to_insert)} productos creados."
+        if skipped_count > 0:
+            msg += f" {skipped_count} filas omitidas por falta de nombre o errores."
         
-        return {"message": f"Se han importado {len(products_to_insert)} productos exitosamente"}
+        return {"message": msg}
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 @router.post("/suppliers")
 async def import_suppliers(
@@ -245,60 +258,50 @@ async def import_suppliers(
     delete_existing: bool = False
 ):
     if not file.filename.endswith(".txt") and not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a .txt or .csv file")
+        raise HTTPException(status_code=400, detail="El archivo debe ser .txt o .csv")
     
     if delete_existing:
         await Supplier.find_all().delete()
 
     content = await file.read()
-    
-    # Try different encodings
     decoded = ""
-    try:
-        decoded = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
+    for enc in ["utf-8-sig", "latin-1", "utf-8"]:
         try:
-            decoded = content.decode("latin-1")
-        except UnicodeDecodeError:
-            decoded = content.decode("utf-8", errors="ignore")
+            decoded = content.decode(enc)
+            break
+        except:
+            continue
             
-    csv_reader = csv.DictReader(StringIO(decoded))
-    
-    suppliers_to_insert = []
-    for row in csv_reader:
-        # Expected: Id, "Nombre de la Compañía", "Nombre de la Agencia", Categoria, Apellidos, Nombre, Email, Teléfono
-        try:
-            company_name = row.get("Nombre de la Compañía") or row.get("name")
-            if not company_name:
-                # Fallback to agency name or contact
-                company_name = row.get("Nombre de la Agencia")
-            if not company_name:
-                # If still no name, maybe use "Nombre" + "Apellidos" as the company name if it's a person-supplier
-                last = row.get("Apellidos") or ""
-                first = row.get("Nombre") or ""
-                if last or first:
-                    company_name = f"{first} {last}".strip()
-            
-            if not company_name:
-                continue # Skip if no name identifiable
+    delimiter = ','
+    if ';' in decoded.split('\n')[0]:
+        delimiter = ';'
 
-            # Contact Name
-            last_name = row.get("Apellidos") or ""
-            first_name = row.get("Nombre") or ""
-            contact_name = f"{first_name} {last_name}".strip()
+    csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
+    suppliers_to_insert = []
+    
+    for row in csv_reader:
+        try:
+            company_name = get_row_val(row, "Nombre de la Compañía", "name") or get_row_val(row, "Nombre de la Agencia")
+            if not company_name:
+                last = get_row_val(row, "Apellidos") or ""
+                first = get_row_val(row, "Nombre") or ""
+                company_name = f"{first} {last}".strip()
+            
+            if not company_name:
+                continue
+
+            contact_name = f"{get_row_val(row, 'Nombre') or ''} {get_row_val(row, 'Apellidos') or ''}".strip()
             
             supplier = Supplier(
                 name=company_name,
                 contact_name=contact_name,
-                phone=row.get("Teléfono") or row.get("phone"),
-                email=row.get("Email") or row.get("email"),
-                address=row.get("address"), # File doesn't seem to have address, but we keep mapping
-                rut=row.get("rut"),
+                phone=get_row_val(row, "Teléfono", "phone"),
+                email=get_row_val(row, "Email", "email"),
                 is_active=True
             )
             suppliers_to_insert.append(supplier)
         except Exception as e:
-            print(f"Error parsing row {row}: {e}")
+            print(f"Error parsing supplier row: {e}")
             continue
 
     if suppliers_to_insert:

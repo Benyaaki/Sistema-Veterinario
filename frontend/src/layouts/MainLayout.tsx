@@ -1,18 +1,43 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useBranch } from '../context/BranchContext';
 import {
     LayoutDashboard, ShoppingCart, FileText, Package, Truck,
     Calendar, Users, Cat, Settings as SettingsIcon,
-    LogOut, ChevronDown, ChevronRight, Activity, BarChart3
+    LogOut, ChevronDown, ChevronRight, Activity, BarChart3, Building2, Shield
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import BranchSelector from '../components/BranchSelector';
 
 const MainLayout = () => {
-    const { user, logout, hasPermission } = useAuth();
+    const { user, logout, hasPermission, hasAnyRole } = useAuth();
     const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [expandedSections, setExpandedSections] = useState<string[]>(['ventas', 'material', 'personas', 'veterinaria', 'administracion']);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (user) {
+                // Standard way to trigger "Are you sure you want to leave?"
+                e.preventDefault();
+                e.returnValue = 'Recuerda cerrar tu sesión antes de salir para mantener la seguridad del sistema.';
+                return e.returnValue;
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [user]);
+    const [showUnlockNoticeModal, setShowUnlockNoticeModal] = useState(false);
+
+    useEffect(() => {
+        if (searchParams.get('unlockNotice') === 'true') {
+            setShowUnlockNoticeModal(true);
+            // Remove the param from URL without refreshing
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('unlockNotice');
+            setSearchParams(newParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
 
     const toggleSection = (section: string) => {
         setExpandedSections(prev =>
@@ -31,7 +56,8 @@ const MainLayout = () => {
             visible: hasPermission('ventas'), // General Sales Access
             items: [
                 { to: '/ventas/nueva', label: 'Nueva Venta', icon: ShoppingCart, visible: hasPermission('ventas') },
-                { to: '/ventas/mis-ventas', label: 'Mis Ventas', icon: FileText, visible: hasPermission('ventas') }
+                { to: '/ventas/mis-ventas', label: 'Mis Ventas', icon: FileText, visible: hasPermission('ventas') },
+                { to: '/ventas/caja', label: 'Caja', icon: Building2, visible: hasPermission('ventas') }
             ]
         },
         {
@@ -71,11 +97,13 @@ const MainLayout = () => {
             id: 'administracion',
             title: 'Administración',
             icon: SettingsIcon,
-            visible: hasPermission('employees') || hasPermission('reports') || hasPermission('activity'),
+            visible: hasAnyRole(['admin', 'superadmin']),
             items: [
                 { to: '/empleados', label: 'Empleados', icon: Users, visible: hasPermission('employees') },
+                { to: '/sucursales', label: 'Sucursales', icon: Building2, visible: hasPermission('employees') },
                 { to: '/reportes', label: 'Reportes', icon: BarChart3, visible: hasPermission('reports') },
-                { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity, visible: hasPermission('activity') }
+                { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity, visible: hasPermission('activity') },
+                { to: '/seguridad', label: 'Seguridad', icon: Shield, visible: hasAnyRole(['admin', 'superadmin']) }
             ]
         }
     ];
@@ -86,7 +114,11 @@ const MainLayout = () => {
             <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm">
                 {/* Logo */}
                 <div className="p-6 border-b border-gray-200 flex items-center justify-center">
-                    <img src="/img/logo.png" alt="CalFer" className="h-16 w-auto object-contain" />
+                    <img
+                        src="/img/logo.png"
+                        alt="CalFer"
+                        className="h-20 w-auto object-contain"
+                    />
                 </div>
 
                 {/* Branch Selector */}
@@ -167,12 +199,18 @@ const MainLayout = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">{user?.name}</div>
-                            <div className="text-xs text-gray-500 capitalize">
-                                {user?.role === 'seller' ? 'Vendedor' :
-                                    user?.role === 'admin' ? 'Administrador' :
-                                        user?.role === 'superadmin' ? 'Super Administrador' :
-                                            user?.role === 'veterinarian' ? 'Veterinario' :
-                                                user?.role}
+                            <div className="text-xs text-gray-500">
+                                {{
+                                    'admin': 'Administrador/a',
+                                    'superadmin': 'Super Administrador/a',
+                                    'veterinarian': 'Veterinario/a',
+                                    'vet': 'Veterinario/a',
+                                    'seller': 'Vendedor/a',
+                                    'sales': 'Vendedor/a',
+                                    'vendedor': 'Vendedor/a',
+                                    'groomer': 'Peluquero/a',
+                                    'grooming': 'Peluquero/a'
+                                }[user?.role?.toLowerCase() as string] || user?.role}
                             </div>
                         </div>
                     </div>
@@ -187,9 +225,54 @@ const MainLayout = () => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                <Outlet />
+            <main className="flex-1 overflow-y-auto flex flex-col bg-gray-50/50">
+                <div className="flex-1 p-6">
+                    <Outlet />
+                </div>
+
+                {/* Footer */}
+                <footer className="p-6 pt-0 text-center text-xs text-gray-400">
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-4 border-t border-gray-200/50 pt-4">
+                        <span>© {new Date().getFullYear()} CalFer. Todos los derechos reservados.</span>
+                        <span className="hidden md:inline text-gray-200">|</span>
+                        <span>
+                            Plataforma creada por{' '}
+                            <a
+                                href="#"
+                                onClick={(e) => e.preventDefault()}
+                                className="font-medium text-primary hover:underline transition-all"
+                            >
+                                B.O
+                            </a>
+                        </span>
+                    </div>
+                </footer>
             </main>
+
+            {/* Unlock Notice Modal */}
+            {showUnlockNoticeModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center space-y-6 animate-in zoom-in-95 duration-300">
+                        <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-amber-50">
+                            <Shield className="w-10 h-10" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-bold text-gray-900">Aviso de Seguridad</h3>
+                            <p className="text-gray-600 leading-relaxed">
+                                Tu cuenta ha sido desbloqueada. Por favor, cuide sus métodos de seguridad y procure utilizar una contraseña que no sea difícil de recordar para evitar futuros bloqueos.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setShowUnlockNoticeModal(false)}
+                            className="w-full py-3.5 bg-primary hover:bg-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/25 active:scale-95"
+                        >
+                            Entendido, gracias
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { salesService, type Sale } from '../api/services';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, DollarSign, Clock, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, DollarSign, Clock, CreditCard, ChevronLeft, ChevronRight, Building2, FileText, Loader2 } from 'lucide-react';
+import { useBranch } from '../context/BranchContext';
+import api from '../api/axios';
 
 const MyDailySales = () => {
-    const { user } = useAuth();
+    const { } = useAuth();
+    const { branches } = useBranch();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
+    const [generatingPdf, setGeneratingPdf] = useState(false);
     const [selectedDebtSale, setSelectedDebtSale] = useState<Sale | null>(null);
     const [stats, setStats] = useState({ total: 0, count: 0 });
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -38,6 +42,29 @@ const MyDailySales = () => {
         }
     };
 
+    const handleDownloadClosing = async () => {
+        setGeneratingPdf(true);
+        try {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const response = await api.get(`/reports/daily-closing-pdf?date=${dateStr}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `cierre_ventas_${dateStr}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Error al generar el PDF de cierre');
+        } finally {
+            setGeneratingPdf(false);
+        }
+    };
+
     const handlePrevDay = () => {
         const newDate = new Date(currentDate);
         newDate.setDate(currentDate.getDate() - 1);
@@ -55,10 +82,20 @@ const MyDailySales = () => {
     // State for Debt Modal
 
 
+    // Helper to parse dates consistently
+    const parseDate = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        let normalizedDate = dateStr;
+        if (!normalizedDate.endsWith('Z') && !normalizedDate.includes('+')) {
+            normalizedDate += 'Z';
+        }
+        return new Date(normalizedDate);
+    };
+
     // Group sales by date
     const salesByDate: { [key: string]: Sale[] } = {};
     sales.forEach(sale => {
-        const dateKey = new Date(sale.created_at).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const dateKey = parseDate(sale.created_at).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
         if (!salesByDate[dateKey]) salesByDate[dateKey] = [];
         salesByDate[dateKey].push(sale);
     });
@@ -66,9 +103,23 @@ const MyDailySales = () => {
     return (
         <div className="p-6 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <Calendar className="text-blue-400" /> Mis Ventas Diarias
-                </h1>
+                <div className="flex flex-col">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <Calendar className="text-blue-400" /> Mis Ventas Diarias
+                    </h1>
+                    <button
+                        onClick={handleDownloadClosing}
+                        disabled={generatingPdf || sales.length === 0}
+                        className="mt-2 flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                        {generatingPdf ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                            <FileText size={16} />
+                        )}
+                        Obtener Ventas
+                    </button>
+                </div>
 
                 <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
                     <button
@@ -126,6 +177,7 @@ const MyDailySales = () => {
                                     <thead className="bg-brand-surface text-gray-600 font-medium border-b border-brand-accent/30">
                                         <tr>
                                             <th className="p-4">Hora</th>
+                                            <th className="p-4">Sucursal</th>
                                             <th className="p-4">Medio</th>
                                             <th className="p-4">Productos / Servicios</th>
                                             <th className="p-4">Pago</th>
@@ -138,14 +190,15 @@ const MyDailySales = () => {
                                                 <td className="p-4 text-gray-600 font-mono">
                                                     <div className="flex items-center gap-2">
                                                         <Clock size={16} />
-                                                        {(() => {
-                                                            // Ensure proper UTC parsing. If string is naive (missing Z or offset), treat as UTC.
-                                                            let dateStr = sale.created_at;
-                                                            if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-                                                                dateStr += 'Z';
-                                                            }
-                                                            return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                                        })()}
+                                                        {parseDate(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-2 text-gray-700">
+                                                        <Building2 size={14} className="text-gray-400" />
+                                                        <span className="font-medium">
+                                                            {branches.find(b => (b.id || b._id) === sale.branch_id)?.name || 'Sucursal'}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -162,9 +215,6 @@ const MyDailySales = () => {
                                                                 <span className="text-xs text-gray-400 font-mono">${item.total.toLocaleString()}</span>
                                                             </div>
                                                         ))}
-                                                        {sale.items.length > 3 && (
-                                                            <span className="text-xs text-gray-400 italic">... y más</span>
-                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="p-4">

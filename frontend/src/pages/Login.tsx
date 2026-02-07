@@ -22,7 +22,7 @@ const verifySchema = z.object({
 });
 
 const resetSchema = z.object({
-    password: z.string().min(6, "Mínimo 6 caracteres"),
+    password: z.string().min(8, "Mínimo 8 caracteres"),
     confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",
@@ -63,11 +63,39 @@ const Login = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            await login(response.data.access_token);
-            navigate('/dashboard');
+            await login(response.data.access_token, response.data.refresh_token);
+
+            if (response.data.show_notice) {
+                navigate('/dashboard?unlockNotice=true');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err: any) {
-            console.error("Login error", err);
-            setGlobalError(err.response?.data?.detail || "Error al iniciar sesión");
+            console.error("Login error object:", err);
+
+            if (err.code === 'ECONNABORTED' || !err.response) {
+                setGlobalError(`No se pudo conectar con el servidor (${err.message || 'Error de Red'}). Revisa tu conexión.`);
+                return;
+            }
+
+            const status = err.response.status;
+            const data = err.response.data;
+            let detail = data?.detail || "Error al iniciar sesión";
+
+            // If detail is a validation array (FastAPI)
+            if (Array.isArray(detail)) {
+                detail = detail[0]?.msg || "Datos inválidos";
+            }
+
+            if (status === 429) {
+                setGlobalError("Demasiados intentos. Por favor, espera un momento.");
+            } else if (status === 403) {
+                setGlobalError(detail);
+            } else if (status === 401) {
+                setGlobalError("Email o contraseña incorrectos");
+            } else {
+                setGlobalError(detail);
+            }
         }
     };
 
@@ -78,7 +106,11 @@ const Login = () => {
             setEmailForReset(data.email);
             setView('verify');
         } catch (err: any) {
-            setGlobalError(err.response?.data?.detail || "Error al enviar código");
+            if (err.response?.status === 429) {
+                setGlobalError("Demasiadas solicitudes. Por favor, intenta de nuevo más tarde.");
+            } else {
+                setGlobalError(err.response?.data?.detail || "Error al enviar código");
+            }
         }
     };
 

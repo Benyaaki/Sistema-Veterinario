@@ -20,11 +20,33 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Optional: clear token locally if needed (but keep context logic in AuthContext)
-            // localStorage.removeItem('token');
-            // window.location.href = '/login'; // Rough force redirect if needed
+    async (error) => {
+        const originalRequest = error.config;
+
+        // If 401 and not already retrying
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login')) {
+            originalRequest._retry = true;
+            const refreshToken = localStorage.getItem('refresh_token');
+
+            if (refreshToken) {
+                try {
+                    // Call refresh endpoint
+                    const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh?refresh_token=${refreshToken}`);
+
+                    // Update tokens
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('refresh_token', data.refresh_token);
+
+                    // Retry original request
+                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                    return api(originalRequest);
+                } catch (refreshError) {
+                    // Refresh failed, logout
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.href = '/login';
+                }
+            }
         }
         return Promise.reject(error);
     }

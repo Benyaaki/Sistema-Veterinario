@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { productsService, type Product } from '../api/services';
+import CreatableSelect from 'react-select/creatable';
+import { capitalizeWords } from '../utils/formatters';
+import { useBranch } from '../context/BranchContext';
 
 interface ProductFormModalProps {
     isOpen: boolean;
@@ -10,7 +13,9 @@ interface ProductFormModalProps {
 }
 
 const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: ProductFormModalProps) => {
-    const [formData, setFormData] = useState<Partial<Product>>({
+    const { currentBranch } = useBranch();
+    const [formData, setFormData] = useState<Partial<Product> & { stock?: number }>({
+        external_id: undefined,
         name: '',
         sku: '',
         category: '',
@@ -18,29 +23,36 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
         purchase_price: 0,
         sale_price: 0,
         tax_percent: 19,
+        avatar: '',
         stock_alert_threshold: 5,
         kind: 'PRODUCT',
-        is_active: true
+        is_active: true,
+        stock: 0
     });
+    const [categories, setCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             if (productToEdit) {
                 setFormData({
+                    external_id: productToEdit.external_id,
                     name: productToEdit.name || '',
                     sku: productToEdit.sku || '',
-                    category: (productToEdit as any).category || '',
-                    supplier_name: (productToEdit as any).supplier_name || '',
+                    category: productToEdit.category || '',
+                    supplier_name: productToEdit.supplier_name || '',
                     purchase_price: productToEdit.purchase_price || 0,
                     sale_price: productToEdit.sale_price || 0,
-                    tax_percent: productToEdit.tax_percent || 19,
+                    tax_percent: productToEdit.tax_percent || 0,
+                    avatar: productToEdit.avatar || '',
                     stock_alert_threshold: productToEdit.stock_alert_threshold || 5,
                     kind: productToEdit.kind || 'PRODUCT',
-                    is_active: productToEdit.is_active ?? true
+                    is_active: productToEdit.is_active ?? true,
+                    stock: (productToEdit as any).stockQty || productToEdit.stock || 0
                 });
             } else {
                 setFormData({
+                    external_id: undefined,
                     name: '',
                     sku: '',
                     category: '',
@@ -48,13 +60,30 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                     purchase_price: 0,
                     sale_price: 0,
                     tax_percent: 19,
+                    avatar: '',
                     stock_alert_threshold: 5,
                     kind: 'PRODUCT',
-                    is_active: true
+                    is_active: true,
+                    stock: 0
                 });
             }
         }
     }, [isOpen, productToEdit]);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadCategories();
+        }
+    }, [isOpen]);
+
+    const loadCategories = async () => {
+        try {
+            const data = await productsService.getCategories();
+            setCategories(data);
+        } catch (error) {
+            console.error("Error loading categories", error);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,7 +91,12 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
 
         try {
             if (productToEdit && (productToEdit.id || productToEdit._id)) {
-                await productsService.update(productToEdit.id || productToEdit._id!, formData);
+                // Include branch_id for stock update
+                const updatePayload = {
+                    ...formData,
+                    branch_id: currentBranch?.id || (currentBranch as any)._id
+                };
+                await productsService.update(productToEdit.id || productToEdit._id!, updatePayload);
                 alert('Producto actualizado correctamente');
             } else {
                 // Ensure required fields for creation
@@ -71,14 +105,25 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                     setLoading(false);
                     return;
                 }
-                await productsService.create(formData as Product);
+                await productsService.create({
+                    ...formData,
+                    branch_id: currentBranch?.id || (currentBranch as any)._id
+                } as Product);
                 alert('Producto creado correctamente');
             }
             onSuccess();
             onClose();
         } catch (error: any) {
             console.error(error);
-            alert(error.response?.data?.detail || 'Error al guardar producto');
+            const detail = error.response?.data?.detail;
+            if (Array.isArray(detail)) {
+                const messages = detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join('\n');
+                alert(`Error de validación:\n${messages}`);
+            } else if (typeof detail === 'string') {
+                alert(detail);
+            } else {
+                alert('Error al guardar producto');
+            }
         } finally {
             setLoading(false);
         }
@@ -100,22 +145,44 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {/* Basic Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">ID (Externo)</label>
+                            <input
+                                type="number"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-gray-50 font-mono"
+                                value={formData.external_id || ''}
+                                onChange={e => setFormData({ ...formData, external_id: e.target.value ? Number(e.target.value) : undefined })}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Artículo *</label>
                             <input
                                 required
                                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                maxLength={80}
                                 value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                onChange={e => setFormData({ ...formData, name: capitalizeWords(e.target.value) })}
                             />
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">UPC/EAN/ISBN (SKU)</label>
                             <input
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none font-mono"
                                 value={formData.sku}
                                 onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Imagen URL (Avatar)</label>
+                            <input
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                value={formData.avatar}
+                                onChange={e => setFormData({ ...formData, avatar: e.target.value })}
+                                placeholder="https://..."
                             />
                         </div>
                     </div>
@@ -123,47 +190,85 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                            <input
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            <CreatableSelect
+                                isClearable
+                                placeholder="Seleccionar o crear categoría..."
+                                noOptionsMessage={() => "No se encontraron categorías"}
+                                formatCreateLabel={(inputValue) => `Crear "${inputValue}"`}
+                                options={categories.map(c => ({ value: c, label: c }))}
+                                value={formData.category ? { value: formData.category, label: formData.category } : null}
+                                onChange={(newValue: any) => setFormData({ ...formData, category: newValue ? capitalizeWords(newValue.value) : '' })}
+                                className="text-sm"
+                                styles={{
+                                    control: (base) => ({
+                                        ...base,
+                                        borderRadius: '0.5rem',
+                                        borderColor: '#e5e7eb',
+                                        '&:hover': { borderColor: '#5B9AA8' }
+                                    })
+                                }}
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Compañía (Proveedor)</label>
                             <input
                                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                maxLength={80}
                                 value={formData.supplier_name}
-                                onChange={e => setFormData({ ...formData, supplier_name: e.target.value })}
+                                onChange={e => setFormData({ ...formData, supplier_name: capitalizeWords(e.target.value) })}
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Precio de Compra (Neto)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Impuesto %</label>
                             <input
                                 type="number"
                                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                value={formData.tax_percent}
+                                onChange={e => setFormData({ ...formData, tax_percent: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Compra (Neto)</label>
+                            <input
+                                type="number"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                max={99999999}
                                 value={formData.purchase_price}
                                 onChange={e => setFormData({ ...formData, purchase_price: Number(e.target.value) })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Precio de Venta (Bruto) *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Venta (Bruto) *</label>
                             <input
                                 required
                                 type="number"
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none font-bold"
+                                max={99999999}
                                 value={formData.sale_price}
                                 onChange={e => setFormData({ ...formData, sale_price: Number(e.target.value) })}
                             />
                         </div>
+                        {formData.kind === 'PRODUCT' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
+                                <input
+                                    type="number"
+                                    className="w-full px-3 py-2 border border-blue-200 bg-blue-50 rounded-lg focus:ring-2 focus:ring-primary outline-none font-bold text-blue-800"
+                                    max={9999}
+                                    value={formData.stock}
+                                    onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
+                                />
+                            </div>
+                        )}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Alerta de Stock Bajo</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Mínimo</label>
                             <input
                                 type="number"
                                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                max={9999}
                                 value={formData.stock_alert_threshold}
                                 onChange={e => setFormData({ ...formData, stock_alert_threshold: Number(e.target.value) })}
                             />

@@ -38,17 +38,22 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             const { data } = await api.get('/branches/', { timeout: 5000 });
             setBranches(data);
 
-            // Try to restore from LocalStorage
+            // Selection logic
             const savedId = localStorage.getItem('activeBranchId');
-            if (savedId) {
-                const found = data.find((b: Branch) => (b.id || b._id) === savedId);
-                if (found) setCurrentBranch(found);
+            let initialBranch: Branch | null = null;
+
+            if (savedId && data.length > 0) {
+                initialBranch = data.find((b: Branch) => (b.id || b._id) === savedId) || null;
             }
 
-            // If no branch selected but branches exist, select first one
-            if (!savedId && data.length > 0) {
-                setCurrentBranch(data[0]);
-                localStorage.setItem('activeBranchId', data[0].id || data[0]._id || '');
+            // Fallback: If no saved branch or saved branch no longer exists
+            if (!initialBranch && data.length > 0) {
+                initialBranch = data[0];
+            }
+
+            if (initialBranch) {
+                setCurrentBranch(initialBranch);
+                localStorage.setItem('activeBranchId', initialBranch.id || initialBranch._id || '');
             }
         } catch (error) {
             console.error("Failed to load branches", error);

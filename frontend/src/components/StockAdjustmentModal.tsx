@@ -82,7 +82,7 @@ const StockAdjustmentModal = ({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
                 <div className="flex justify-between items-center p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-800">Ajustar Stock</h2>
+                    <h2 className="text-xl font-bold text-gray-800">Ajustar Inventario</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                         <X size={24} />
                     </button>
@@ -99,7 +99,7 @@ const StockAdjustmentModal = ({
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
                         </div>
                         <div>
-                            <span className="text-xs text-gray-500 uppercase font-bold">Stock Actual</span>
+                            <span className="text-xs text-gray-500 uppercase font-bold">Cantidad Actual</span>
                             <div className="text-lg font-bold text-gray-900">{currentQuantity}</div>
                         </div>
                     </div>
@@ -145,7 +145,7 @@ const StockAdjustmentModal = ({
                             className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 font-medium flex items-center gap-2"
                         >
                             <Save size={18} />
-                            {loading ? 'Guardando...' : 'Actualizar Stock'}
+                            {loading ? 'Guardando...' : 'Actualizar Inventario'}
                         </button>
                     </div>
                 </form>

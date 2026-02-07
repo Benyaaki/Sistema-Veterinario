@@ -9,6 +9,9 @@ from app.routes.auth import get_current_user
 from app.models.user import User
 from beanie import PydanticObjectId, WriteRules
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,6 +28,7 @@ class SaleCreate(BaseModel):
     payment_method: str
     cash_received: Optional[float] = None
     cash_change: Optional[float] = None
+    cash_session_id: Optional[str] = None # For Task 6 & 7
     # Delivery info
     create_delivery: bool = False
     delivery_info: Optional[Dict] = None # shipping_cost, customer_snapshot
@@ -32,6 +36,14 @@ class SaleCreate(BaseModel):
 @router.post("/", response_model=Sale)
 async def create_sale(data: SaleCreate, user: User = Depends(get_current_user)):
     # 1. Prepare Sale Object
+    cash_sess_id = None
+    if data.cash_session_id and len(str(data.cash_session_id)) > 5:
+        try:
+            cash_sess_id = PydanticObjectId(str(data.cash_session_id))
+            logger.info(f"Linking sale to cash session: {cash_sess_id}")
+        except Exception as e:
+            logger.error(f"Invalid cash_session_id: {data.cash_session_id}. Error: {e}")
+
     sale = Sale(
         branch_id=PydanticObjectId(data.branch_id),
         customer_id=PydanticObjectId(data.customer_id) if data.customer_id else None,
@@ -43,6 +55,7 @@ async def create_sale(data: SaleCreate, user: User = Depends(get_current_user)):
         payment_method=data.payment_method,
         cash_received=data.cash_received,
         cash_change=data.cash_change,
+        cash_session_id=cash_sess_id,
         created_by=user.id,
         created_at=datetime.now(timezone.utc),
         channel="DELIVERY" if data.create_delivery else "STORE",
@@ -81,15 +94,14 @@ async def create_sale(data: SaleCreate, user: User = Depends(get_current_user)):
             )
             
             if not stock:
-                # Should we error? Or create negative?
-                if "admin" not in user.roles and "superadmin" not in user.roles:
-                    raise HTTPException(status_code=400, detail=f"Stock not found for {item.name}")
+                # We allow creating the stock record with 0 quantity if it doesn't exist
                 stock = Stock(branch_id=sale.branch_id, product_id=item.product_id, quantity=0)
                 await stock.insert()
 
-            if stock.quantity < item.quantity:
-                if "admin" not in user.roles and "superadmin" not in user.roles:
-                    raise HTTPException(status_code=400, detail=f"Insufficient stock for {item.name}")
+            # We allow negative stock for all users as requested
+            # if stock.quantity < item.quantity:
+            #     if "admin" not in user.roles and "superadmin" not in user.roles:
+            #         raise HTTPException(status_code=400, detail=f"Insufficient stock for {item.name}")
             
             stock.quantity -= item.quantity
             await stock.save()
@@ -181,9 +193,19 @@ async def void_sale(id: str, reason: str = "Anulación Admin", user: User = Depe
 
     sale.status = "VOIDED"
     sale.voided_by = user.id
-    sale.voided_at = datetime.utcnow()
+    sale.voided_at = datetime.now(timezone.utc)
     sale.void_reason = reason
     await sale.save()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="SALE_VOID",
+        description=f"Venta anulada por ${sale.total:,.0f} (ID: {str(sale.id)[-6:]}) - Razón: {reason}",
+        branch_id=sale.branch_id,
+        reference_id=str(sale.id)
+    )
     
     return sale
 
@@ -204,8 +226,9 @@ async def populate_customer_names(sales: List[Sale]) -> List[Sale]:
             try:
                 tutor = await Tutor.get(sale.customer_id)
                 if tutor:
-                    sale.customer_name = tutor.full_name
-                    tutor_cache[sale.customer_id] = tutor.full_name
+                    name = f"{tutor.first_name} {tutor.last_name}"
+                    sale.customer_name = name
+                    tutor_cache[sale.customer_id] = name
                 else:
                     # Try string lookup as last resort
                     # (In case ID type mismatch occurred)
@@ -279,6 +302,82 @@ async def get_sale_by_id(id: str, user: User = Depends(get_current_user)):
         from app.models.tutor import Tutor
         tutor = await Tutor.get(sale.customer_id)
         if tutor:
-            sale.customer_name = tutor.full_name
+            sale.customer_name = f"{tutor.first_name} {tutor.last_name}"
             
     return sale
+
+@router.post("/{id}/send-email")
+async def send_sale_receipt_email(id: str, user: User = Depends(get_current_user)):
+    """
+    Sends the sale receipt to the customer's email.
+    """
+    try:
+        sale = await Sale.get(id)
+        if not sale:
+            raise HTTPException(status_code=404, detail="Sale not found")
+        
+        if not sale.customer_id:
+            raise HTTPException(status_code=400, detail="Sale has no associated customer")
+        
+        from app.models.tutor import Tutor
+        from app.models.branch import Branch
+        from app.services.email import send_email_sync
+        from app.services.receipt_service import generate_receipt_html
+        
+        tutor = await Tutor.get(sale.customer_id)
+        if not tutor or not tutor.email:
+            raise HTTPException(status_code=400, detail="Customer has no email defined")
+        
+        branch = await Branch.get(sale.branch_id)
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        
+        # Generate HTML
+        html_content = generate_receipt_html(sale, tutor, branch)
+        
+        # Send Email
+        subject = f"Comprobante de Venta - CalFer (#{str(sale.id)[-8:].upper()})"
+        body = f"Hola {tutor.first_name}, adjuntamos tu comprobante de venta por ${sale.total:,.0f}."
+        
+        # We call sync but could be async in future.
+        send_email_sync(tutor.email, subject, body, html_content)
+        
+        # Log Activity
+        from app.services.activity_service import log_activity
+        await log_activity(
+            user=user,
+            action_type="EMAIL_SENT",
+            description=f"Boleta enviada por email a {tutor.email} (Venta: {str(sale.id)[-6:]})",
+            branch_id=sale.branch_id,
+            reference_id=str(sale.id)
+        )
+        
+        return {"message": "Email sent successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending sale email: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error sending email")
+
+@router.get("/customer/{customer_id}", response_model=List[Sale])
+async def get_customer_sales(
+    customer_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    branch_id: Optional[str] = None,
+    user: User = Depends(get_current_user)
+):
+    query = [Sale.customer_id == PydanticObjectId(customer_id), Sale.status == "COMPLETED"]
+    
+    if start_date:
+        query.append(Sale.created_at >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
+    if end_date:
+        query.append(Sale.created_at <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
+    if branch_id:
+        query.append(Sale.branch_id == PydanticObjectId(branch_id))
+        
+    sales = await Sale.find(*query).sort("-created_at").to_list()
+    return sales

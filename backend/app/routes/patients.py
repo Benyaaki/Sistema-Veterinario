@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Optional
 from datetime import datetime
 from app.models.patient import Patient, Species
@@ -9,8 +9,10 @@ from beanie import PydanticObjectId
 
 router = APIRouter()
 
+NAME_REGEX = r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$"
+
 class PatientCreate(BaseModel):
-    name: str
+    name: str = Field(..., pattern=NAME_REGEX)
     species: str
     breed: str
     sex: str
@@ -23,7 +25,7 @@ class PatientCreate(BaseModel):
     tutor2_id: Optional[str] = None
 
 class PatientUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, pattern=NAME_REGEX)
     species: Optional[str] = None
     breed: Optional[str] = None
     sex: Optional[str] = None
@@ -36,7 +38,7 @@ class PatientUpdate(BaseModel):
     tutor2_id: Optional[str] = None
 
 @router.post("/", response_model=Patient)
-async def create_patient(patient_data: PatientCreate, user = Depends(get_current_user)):
+async def create_patient(request: Request, patient_data: PatientCreate, user = Depends(get_current_user)):
     # Verify tutor exists
     try:
         tutor_oid = PydanticObjectId(patient_data.tutor_id)
@@ -66,7 +68,9 @@ async def create_patient(patient_data: PatientCreate, user = Depends(get_current
         user=user,
         action_type="PATIENT_ADD",
         description=f"Paciente agregado: {new_patient.name} ({new_patient.species})",
-        reference_id=str(new_patient.id)
+        reference_id=str(new_patient.id),
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
     )
     
     return new_patient
@@ -76,7 +80,7 @@ async def get_patients(search: Optional[str] = None, limit: int = 50, skip: int 
     query = Patient.find_all()
     if search:
         query = Patient.find({"name": {"$regex": search, "$options": "i"}})
-    return await query.limit(limit).skip(skip).to_list()
+    return await query.sort("name").limit(limit).skip(skip).to_list()
 
 class PatientWithDetails(Patient):
     tutor: Optional[Tutor] = None
@@ -99,7 +103,7 @@ async def get_patient(id: str, user = Depends(get_current_user)):
     return response
 
 @router.put("/{id}", response_model=Patient)
-async def update_patient(id: str, update_data: PatientUpdate, user = Depends(get_current_user)):
+async def update_patient(request: Request, id: str, update_data: PatientUpdate, user = Depends(get_current_user)):
     patient = await Patient.get(id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -111,12 +115,55 @@ async def update_patient(id: str, update_data: PatientUpdate, user = Depends(get
          data['tutor2_id'] = PydanticObjectId(data['tutor2_id'])
 
     await patient.set(data)
+
+    # Log Activity
+    field_map = {
+        "name": "Nombre",
+        "species": "Especie",
+        "breed": "Raza",
+        "sex": "Sexo",
+        "color": "Color",
+        "birth_date": "F. Nacimiento",
+        "weight": "Peso",
+        "allergies": "Alergias",
+        "notes": "Notas",
+        "tutor_id": "Tutor Principal",
+        "tutor2_id": "Tutor Secundario"
+    }
+    changed_fields = list(data.keys())
+    translated_fields = [field_map.get(f, f) for f in changed_fields]
+    
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="PATIENT_EDIT",
+        description=f"Editó información del paciente: {patient.name}. Campos: {', '.join(translated_fields)}",
+        reference_id=id,
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent"),
+        metadata={"fields_changed": changed_fields}
+    )
+    
     return patient
 
 @router.delete("/{id}")
-async def delete_patient(id: str, user = Depends(get_current_user)):
+async def delete_patient(request: Request, id: str, user = Depends(get_current_user)):
     patient = await Patient.get(id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
+    
+    name = patient.name
     await patient.delete()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="PATIENT_DELETE",
+        description=f"Paciente eliminado: {name}",
+        reference_id=id,
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    
     return {"message": "Patient deleted"}

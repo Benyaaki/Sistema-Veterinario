@@ -20,6 +20,13 @@ const SalesHistory = () => {
         }
     };
 
+    const formatDate = (dateString: string) => {
+        if (!dateString) return 'N/A';
+        const hasTimezone = dateString.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(dateString);
+        const isoString = hasTimezone ? dateString : `${dateString}Z`;
+        return new Date(isoString).toLocaleString();
+    };
+
     useEffect(() => {
         loadSales();
     }, []);
@@ -59,7 +66,7 @@ const SalesHistory = () => {
                         {sales.map((sale) => (
                             <tr key={sale.id || sale._id} className="hover:bg-secondary-50">
                                 <td className="p-3 text-secondary-600">
-                                    {new Date(sale.created_at).toLocaleString()}
+                                    {formatDate(sale.created_at)}
                                 </td>
                                 <td className="p-3 font-mono text-xs text-secondary-500">{sale.id || sale._id}</td>
                                 <td className="p-3 text-right font-bold text-secondary-800">${sale.total.toLocaleString()}</td>

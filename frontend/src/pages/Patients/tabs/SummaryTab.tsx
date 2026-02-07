@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 
 const SummaryTab = ({ patient }: any) => {
+    const { hasPermission } = useAuth();
+    const canViewTutors = hasPermission('tutors');
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-bold text-gray-900">Información del Paciente</h3>
@@ -32,9 +35,15 @@ const SummaryTab = ({ patient }: any) => {
                             <div>
                                 <span className="block text-sm text-gray-500">Tutor</span>
                                 {patient.tutor ? (
-                                    <Link to={`/tutores/${patient.tutor._id || patient.tutor_id}`} className="font-medium text-blue-600 hover:underline">
-                                        {patient.tutor.full_name}
-                                    </Link>
+                                    canViewTutors ? (
+                                        <Link to={`/tutores/${patient.tutor._id || patient.tutor_id}`} className="font-medium text-blue-600 hover:underline">
+                                            {patient.tutor.first_name} {patient.tutor.last_name}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-medium text-gray-900">
+                                            {patient.tutor.first_name} {patient.tutor.last_name}
+                                        </span>
+                                    )
                                 ) : (
                                     <span className="text-gray-400">-</span>
                                 )}
@@ -43,9 +52,15 @@ const SummaryTab = ({ patient }: any) => {
                             {patient.tutor2 && (
                                 <div className="mt-4">
                                     <span className="block text-sm text-gray-500">Tutor Secundario</span>
-                                    <Link to={`/tutores/${patient.tutor2._id || patient.tutor2_id}`} className="font-medium text-blue-600 hover:underline">
-                                        {patient.tutor2.full_name}
-                                    </Link>
+                                    {canViewTutors ? (
+                                        <Link to={`/tutores/${patient.tutor2._id || patient.tutor2_id}`} className="font-medium text-blue-600 hover:underline">
+                                            {patient.tutor2.first_name} {patient.tutor2.last_name}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-medium text-gray-900">
+                                            {patient.tutor2.first_name} {patient.tutor2.last_name}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>

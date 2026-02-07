@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import api from '../../../api/axios';
-import { Plus, Download, Trash2, FilePlus } from 'lucide-react';
+import { Plus, Download, Trash2, FilePlus, Edit2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 const ExamsTab = ({ patientId }: { patientId: string }) => {
     const [exams, setExams] = useState<any[]>([]);
     const [showForm, setShowForm] = useState(false);
+    const [editingExam, setEditingExam] = useState<any>(null);
 
     const fetchExams = () => {
         api.get(`/exams/patient/${patientId}`).then(({ data }) => setExams(data));
@@ -32,6 +33,15 @@ const ExamsTab = ({ patientId }: { patientId: string }) => {
                 <ExamForm patientId={patientId} onSuccess={() => { setShowForm(false); fetchExams(); }} />
             )}
 
+            {editingExam && (
+                <ExamForm
+                    patientId={patientId}
+                    exam={editingExam}
+                    onSuccess={() => { setEditingExam(null); fetchExams(); }}
+                    onCancel={() => setEditingExam(null)}
+                />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {exams.length === 0 ? (
                     <p className="col-span-2 text-gray-500 italic">No hay exámenes registrados.</p>
@@ -43,9 +53,14 @@ const ExamsTab = ({ patientId }: { patientId: string }) => {
                                     <h4 className="font-bold text-gray-900">{ex.type}</h4>
                                     <p className="text-xs text-gray-500">{new Date(ex.date).toLocaleDateString()}</p>
                                 </div>
-                                <button onClick={async () => { if (confirm('Eliminar?')) { await api.delete(`/exams/${ex._id}`); fetchExams(); } }} className="text-gray-400 hover:text-red-500">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex space-x-2">
+                                    <button onClick={() => setEditingExam(ex)} className="text-gray-400 hover:text-blue-500 transition-colors">
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={async () => { if (confirm('¿Eliminar este examen?')) { await api.delete(`/exams/${ex._id}`); fetchExams(); } }} className="text-gray-400 hover:text-red-500 transition-colors">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                             {ex.result_text && <p className="text-sm text-gray-700 mb-3">{ex.result_text}</p>}
 
@@ -178,8 +193,13 @@ const FileUpload = ({ examId, onSuccess }: any) => {
     )
 }
 
-const ExamForm = ({ patientId, onSuccess }: any) => {
-    const { register, handleSubmit } = useForm();
+const ExamForm = ({ patientId, exam, onSuccess, onCancel }: any) => {
+    const { register, handleSubmit } = useForm({
+        defaultValues: exam ? {
+            type: exam.type,
+            result_text: exam.result_text
+        } : {}
+    });
     const [pendingFiles, setPendingFiles] = useState<{ file: File, comment: string }[]>([]);
     const [saving, setSaving] = useState(false);
 
@@ -202,17 +222,25 @@ const ExamForm = ({ patientId, onSuccess }: any) => {
     const onSubmit = async (data: any) => {
         setSaving(true);
         try {
-            // 1. Create Exam
-            const { data: newExam } = await api.post('/exams', { ...data, patient_id: patientId });
+            let examId = exam?._id;
+
+            if (exam) {
+                // Update existing
+                await api.put(`/exams/${exam._id}`, data);
+            } else {
+                // 1. Create Exam
+                const res = await api.post('/exams', { ...data, patient_id: patientId });
+                examId = res.data._id;
+            }
 
             // 2. Upload Files if any
-            if (pendingFiles.length > 0) {
+            if (pendingFiles.length > 0 && examId) {
                 for (const pf of pendingFiles) {
                     const formData = new FormData();
                     formData.append('file', pf.file);
                     if (pf.comment) formData.append('comment', pf.comment);
 
-                    await api.post(`/exams/${newExam._id}/files`, formData, {
+                    await api.post(`/exams/${examId}/files`, formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
                     });
                 }
@@ -228,8 +256,15 @@ const ExamForm = ({ patientId, onSuccess }: any) => {
     };
 
     return (
-        <div className="bg-gray-50 p-6 rounded-lg border mb-6">
-            <h4 className="font-bold text-gray-900 mb-4">Registrar Nuevo Examen</h4>
+        <div className="bg-white p-6 rounded-lg border-2 border-blue-500 shadow-lg mb-6 animate-in slide-in-from-top duration-300">
+            <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-gray-900">{exam ? 'Editar Examen' : 'Registrar Nuevo Examen'}</h4>
+                {onCancel && (
+                    <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <Plus className="w-5 h-5 rotate-45" />
+                    </button>
+                )}
+            </div>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Examen</label>
@@ -293,9 +328,9 @@ const ExamForm = ({ patientId, onSuccess }: any) => {
                     <button
                         type="submit"
                         disabled={saving}
-                        className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 flex justify-center items-center"
+                        className={`w-full ${exam ? 'bg-blue-600' : 'bg-primary'} text-white py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 flex justify-center items-center shadow-sm transition-all`}
                     >
-                        {saving ? 'Guardando...' : 'Guardar Examen y Archivos'}
+                        {saving ? 'Guardando...' : (exam ? 'Actualizar Examen' : 'Guardar Examen y Archivos')}
                     </button>
                 </div>
             </form>

@@ -85,6 +85,12 @@ async def create_consultation(
             subject = "Confirmación de Reserva - CalFer"
             date_str = new_con.date.strftime('%d/%m/%Y %H:%M')
             
+            # Fetch Branch for dynamic info
+            from app.models.branch import Branch
+            app_branch = await Branch.get(new_con.branch_id) if new_con.branch_id else None
+            branch_name = app_branch.name if app_branch else "CalFer"
+            branch_phone = app_branch.phone if app_branch and app_branch.phone else "+56 9 4862 0501"
+
             # Fetch settings for template
             from app.models.settings import VetSettings
             settings = await VetSettings.find_one()
@@ -94,35 +100,73 @@ async def create_consultation(
                 print("DEBUG: Using custom template")
                 # Use dynamic template
                 formatted_content = template.format(
-                    tutor_name=tutor.full_name,
+                    tutor_name=f"{tutor.first_name} {tutor.last_name}",
                     patient_name=patient.name,
                     date=date_str,
                     reason=new_con.reason,
+                    branch_name=branch_name,
+                    branch_phone=branch_phone,
                     notes=f"""<br><br><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px;"><strong>Indicaciones:</strong><br>{new_con.notes}</div>""" if new_con.notes else ""
                 ).replace('\n', '<br>') # Simple newline to nice HTML conversion
                 
                 html_content = formatted_content
-                body = formatted_content.replace('<br>', '\n') # specific naive strip for plain text
+                if "{branch_name}" not in template:
+                    import re
+                    # Look for "Motivo: [reason]" and insert Sucursal below it
+                    reason_escaped = re.escape(str(new_con.reason))
+                    pattern = rf"(Motivo:.*?{reason_escaped})"
+                    sucursal_line = f"Sucursal: {branch_name}"
+                    
+                    if re.search(pattern, html_content):
+                        html_content = re.sub(pattern, rf"\1<br>{sucursal_line}", html_content)
+                    else:
+                        html_content += f"<p>{sucursal_line}</p>"
+                
+                body = formatted_content.replace('<br>', '\n')
+                if "{branch_name}" not in template:
+                    body += f"\nSucursal: {branch_name}"
             else:
                 print("DEBUG: Using default template")
+                # Prepare type string for default template
+                type_map = {"VET": "veterinaria", "GROOMING": "peluquería"}
+                app_type_str = type_map.get(new_con.appointment_type, "atención")
+
                 # Default Hardcoded
-                body = f"""Hola {tutor.full_name},
-Su hora para {patient.name} ha sido reservada con éxito.
+                body = f"""Hola {tutor.first_name} {tutor.last_name},
+Tu hora de {app_type_str} para {patient.name} ha sido reservada con éxito en {branch_name}.
 Fecha: {date_str}
 Motivo: {new_con.reason}
+
+Si tienes alguna pregunta, no dudes en contactarnos vía WhatsApp o llamando al: {branch_phone}
 """
                 html_content = f"""
-                <p>Hola <strong>{tutor.full_name}</strong>,</p>
-                <p>Su hora para <strong>{patient.name}</strong> ha sido reservada con éxito.</p>
-                <ul>
-                    <li><strong>Fecha:</strong> {date_str}</li>
-                    <li><strong>Motivo:</strong> {new_con.reason}</li>
-                    {f'<li><strong>Indicaciones:</strong> {new_con.notes}</li>' if new_con.notes else ''}
-                </ul>
-                <p>Gracias por confiar en nosotros.</p>
+                <p>Hola <strong>{tutor.first_name} {tutor.last_name}</strong>,</p>
+                <p>Tu hora de <strong>{app_type_str}</strong> para <strong>{patient.name}</strong> ha sido reservada con éxito en <strong>{branch_name}</strong>.</p>
+                
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 16px; color: #1e293b;">Detalles de la Cita</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; color: #64748b; font-size: 14px; width: 100px;">Fecha:</td>
+                            <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">{date_str}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Motivo:</td>
+                            <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">{new_con.reason}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Sucursal:</td>
+                            <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">{branch_name}</td>
+                        </tr>
+                        {f'<tr><td style="padding: 8px 0; color: #64748b; font-size: 14px; vertical-align: top;">Notas:</td><td style="padding: 8px 0; color: #1e293b; font-size: 14px; font-style: italic;">{new_con.notes}</td></tr>' if new_con.notes else ''}
+                    </table>
+                </div>
+                
+                <p>Te recordamos que si necesitas cancelar o modificar tu cita, por favor avísanos con al menos 24 horas de antelación.</p>
+                <p>¡Esperamos verte pronto!</p>
                 """
             
-            html_body = get_email_template("Reserva Confirmada", html_content)
+            html_body = get_email_template("Reserva Confirmada", html_content, phone=branch_phone)
             
             print(f"DEBUG: Sending email synchronously to {tutor.email}")
             send_email_sync(tutor.email, subject, body, html_body)
@@ -171,25 +215,49 @@ async def update_consultation(
             if patient:
                 tutor = await Tutor.get(patient.tutor_id)
                 if tutor and tutor.email:
+                    app_type_map = {"VET": "veterinaria", "GROOMING": "peluquería"}
+                    app_type_str = app_type_map.get(con.appointment_type, "atención")
+
+                    # Fetch Branch for dynamic info
+                    from app.models.branch import Branch
+                    app_branch = await Branch.get(con.branch_id) if con.branch_id else None
+                    branch_name = app_branch.name if app_branch else "CalFer"
+                    branch_phone = app_branch.phone if app_branch and app_branch.phone else "+56 9 4862 0501"
+
                     print(f"DEBUG: Reschedule - Sending email to {tutor.email}")
                     subject = "Tu cita ha sido reagendada - CalFer"
                     date_str = con.date.strftime('%d/%m/%Y %H:%M')
                     
-                    body = f"Hola {tutor.full_name}, Tu cita para {patient.name} ha sido reagendada para el {date_str}."
+                    body = f"Hola {tutor.first_name} {tutor.last_name}, Tu cita de {app_type_str} para {patient.name} ha sido reagendada para el {date_str} en {branch_name}.\n\nSi tienes preguntas contáctanos al: {branch_phone}"
                     
                     html_content = f"""
-                    <p>Hola <strong>{tutor.full_name}</strong>,</p>
-                    <p>La cita para <strong>{patient.name}</strong> ha sido reagendada.</p>
-                    <div style="background-color: #E6FFFA; border-left: 4px solid #38B2AC; padding: 15px; margin: 20px 0;">
-                        <p style="margin:0;"><strong>Nueva Fecha:</strong> {date_str}</p>
-                        <p style="margin:0;"><strong>Motivo:</strong> {con.reason}</p>
+                    <p>Hola <strong>{tutor.first_name} {tutor.last_name}</strong>,</p>
+                    <p>Te informamos que la cita de <strong>{app_type_str}</strong> para <strong>{patient.name}</strong> ha sido reagendada exitosamente.</p>
+                    
+                    <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0;">
+                        <h3 style="margin: 0 0 16px 0; font-size: 16px; color: #0369a1;">Nueva Información</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #64748b; font-size: 14px; width: 100px;">Fecha:</td>
+                                <td style="padding: 8px 0; color: #0369a1; font-size: 14px; font-weight: 600;">{date_str}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Motivo:</td>
+                                <td style="padding: 8px 0; color: #334155; font-size: 14px;">{con.reason}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Sucursal:</td>
+                                <td style="padding: 8px 0; color: #334155; font-size: 14px;">{branch_name}</td>
+                            </tr>
+                        </table>
                     </div>
-                    <p>Si no realizaste este cambio, por favor contáctanos de inmediato.</p>
+                    
+                    <p style="color: #64748b; font-size: 14px;">Si no realizaste este cambio o deseas modificarlo nuevamente, por favor contáctanos de inmediato.</p>
                     """
 
 
 # In update_consultation:
-                    html_body = get_email_template("Cita Reagendada", html_content)
+                    html_body = get_email_template("Cita Reagendada", html_content, phone=branch_phone)
                     
                     print(f"DEBUG: Sending reschedule email synchronously to {tutor.email}")
                     send_email_sync(tutor.email, subject, body, html_body)
@@ -206,10 +274,24 @@ async def delete_consultation(id: str, user = Depends(get_current_user)):
     con = await Consultation.get(id)
     if not con:
         raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    # Get patient info before deleting
+    patient = await Patient.get(con.patient_id)
+    pat_name = patient.name if patient else "Desconocido"
+    date_str = con.date.strftime('%d/%m/%Y') if con.date else "N/A"
+    
     await con.delete()
-    return {"message": "Deleted"}
-
-    await con.delete()
+    
+    # Log Activity
+    from app.services.activity_service import log_activity
+    await log_activity(
+        user=user,
+        action_type="APPOINTMENT_DELETE",
+        description=f"Atención eliminada para {pat_name} (Fecha: {date_str})",
+        branch_id=PydanticObjectId(con.branch_id) if con.branch_id else None,
+        reference_id=id
+    )
+    
     return {"message": "Deleted"}
 
 @router.get("/patient/{patient_id}")
