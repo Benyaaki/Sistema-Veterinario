@@ -48,9 +48,11 @@ const POS = () => {
     const loadProfessionals = async () => {
         try {
             const res = await api.get('/employees');
-            setProfessionals(res.data.filter((e: any) =>
-                (e.roles?.includes('vet') || e.roles?.includes('groomer') || e.role === 'vet' || e.role === 'groomer') && e.is_active
-            ));
+            setProfessionals(res.data.filter((e: any) => {
+                const isVet = e.role?.includes('vet') || e.roles?.some((r: string) => r.includes('vet'));
+                const isGroomer = e.role?.includes('groom') || e.roles?.some((r: string) => r.includes('groom'));
+                return (isVet || isGroomer) && e.is_active;
+            }));
         } catch (e) {
             console.error(e);
         }
@@ -450,8 +452,11 @@ const POS = () => {
                                                     <option value="">Seleccionar...</option>
                                                     {professionals
                                                         .filter(p => {
-                                                            if (item.category === 'Veterinaria') return p.roles?.includes('vet') || p.role === 'vet';
-                                                            if (item.category === 'Peluquería') return p.roles?.includes('groomer') || p.role === 'groomer';
+                                                            const isVet = p.role?.includes('vet') || p.roles?.some((r: string) => r.includes('vet'));
+                                                            const isGroomer = p.role?.includes('groom') || p.roles?.some((r: string) => r.includes('groom'));
+
+                                                            if (item.category === 'Veterinaria') return isVet;
+                                                            if (item.category === 'Peluquería') return isVet || isGroomer;
                                                             return true;
                                                         })
                                                         .map(p => (
