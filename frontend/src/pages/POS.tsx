@@ -404,6 +404,7 @@ const POS = () => {
                                                     <div className="font-bold text-green-600">${product.sale_price.toLocaleString()}</div>
                                                     <div className="text-xs text-gray-500">
                                                         {product.kind === 'PRODUCT' ? `Stock: ${product.stock ?? '-'}` : 'Servicio'}
+                                                        {product.category && <span className="text-blue-400 ml-1">• {product.category}</span>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -440,16 +441,22 @@ const POS = () => {
                                             <div className="text-[10px] text-gray-400 font-mono uppercase italic">{item.kind}</div>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            {item.kind !== 'PRODUCT' ? (
+                                            {(item.kind !== 'PRODUCT' || item.category === 'Veterinaria' || item.category === 'Peluquería') ? (
                                                 <select
                                                     className="text-xs border rounded p-1 max-w-[120px]"
                                                     value={item.professional_id || ''}
                                                     onChange={(e) => updateProfessional(idx, e.target.value)}
                                                 >
                                                     <option value="">Seleccionar...</option>
-                                                    {professionals.map(p => (
-                                                        <option key={p._id} value={p._id}>{p.first_name} {p.last_name}</option>
-                                                    ))}
+                                                    {professionals
+                                                        .filter(p => {
+                                                            if (item.category === 'Veterinaria') return p.roles?.includes('vet') || p.role === 'vet';
+                                                            if (item.category === 'Peluquería') return p.roles?.includes('groomer') || p.role === 'groomer';
+                                                            return true;
+                                                        })
+                                                        .map(p => (
+                                                            <option key={p._id || p.id} value={p._id || p.id}>{p.first_name} {p.last_name}</option>
+                                                        ))}
                                                 </select>
                                             ) : (
                                                 <span className="text-gray-400">-</span>

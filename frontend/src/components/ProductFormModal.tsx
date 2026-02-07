@@ -195,7 +195,7 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                                 placeholder="Seleccionar o crear categoría..."
                                 noOptionsMessage={() => "No se encontraron categorías"}
                                 formatCreateLabel={(inputValue) => `Crear "${inputValue}"`}
-                                options={categories.map(c => ({ value: c, label: c }))}
+                                options={[...new Set([...categories, 'Veterinaria', 'Peluquería'])].sort().map(c => ({ value: c, label: c }))}
                                 value={formData.category ? { value: formData.category, label: formData.category } : null}
                                 onChange={(newValue: any) => setFormData({ ...formData, category: newValue ? capitalizeWords(newValue.value) : '' })}
                                 className="text-sm"
