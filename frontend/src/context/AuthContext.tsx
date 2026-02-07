@@ -31,6 +31,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchUser = async () => {
         setIsLoading(true);
+        const token = localStorage.getItem('token');
+
+        if (token === 'demo_token') {
+            setUser({
+                id: 'demo-123',
+                name: 'Usuario Demo (Admin)',
+                email: 'demo@calfer.cl',
+                role: 'admin',
+                roles: ['admin', 'ventas', 'inventory'],
+                permissions: [],
+                signature_file_id: null
+            });
+            setIsLoading(false);
+            return;
+        }
+
         try {
             // Force timeout of 15s to allow backend cold start
             const { data } = await api.get('/auth/me', { timeout: 15000 });

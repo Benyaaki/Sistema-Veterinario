@@ -55,6 +55,12 @@ const Login = () => {
     const onLoginSubmit = async (data: LoginForm) => {
         try {
             setGlobalError(null);
+            if (data.email === 'demo@calfer.cl' && data.password === 'admin123') {
+                await login('demo_token', 'demo_refresh');
+                navigate('/dashboard');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('username', data.email);
             formData.append('password', data.password);
@@ -256,6 +262,17 @@ const Login = () => {
                                     {loginForm.formState.isSubmitting ? 'Ingresando...' : 'Acceder al Sistema'}
                                     {!loginForm.formState.isSubmitting && <ArrowRight className="w-5 h-5" />}
                                 </button>
+
+                                <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                                    <p className="text-xs font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
+                                        <AlertCircle size={14} /> Acceso para Demostración
+                                    </p>
+                                    <div className="space-y-1 text-xs text-blue-600">
+                                        <p><strong>Email:</strong> demo@calfer.cl</p>
+                                        <p><strong>Clave:</strong> admin123</p>
+                                        <p className="mt-2 text-[10px] opacity-70">Nota: Este acceso simula un Administrador para vista en GitHub Pages.</p>
+                                    </div>
+                                </div>
                             </form>
                         )}
 
@@ -383,7 +400,7 @@ const Login = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

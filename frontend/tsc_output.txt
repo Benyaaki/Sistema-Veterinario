@@ -1,0 +1,1 @@
+src/pages/Tutors/TutorDetail.tsx(7,42): error TS6133: 'ExternalLink' is declared but its value is never read.
