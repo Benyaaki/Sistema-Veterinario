@@ -4,7 +4,7 @@ import api from '../../api/axios';
 import {
     Phone, Calendar, Activity,
     ArrowLeft, PawPrint, Clock, CheckCircle, XCircle,
-    ShoppingBag, ChevronDown, ChevronUp, ExternalLink, Plus
+    ShoppingBag, ChevronDown, ChevronUp, Plus
 } from 'lucide-react';
 import { formatPhoneNumber } from '../../utils/formatters';
 
