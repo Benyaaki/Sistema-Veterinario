@@ -1,5 +1,7 @@
 # Sistema de Gestión Veterinaria CalFer
 
+### 🌐 [Ver Aplicación en Vivo](https://benyaaki.github.io/Sistema-Veterinario/)
+
 El Sistema de Gestión Veterinaria CalFer es una plataforma integral diseñada para la administración eficiente de clínicas veterinarias y servicios de peluquería canina. Este proyecto centraliza todas las operaciones clínicas, comerciales y administrativas en una única interfaz web, permitiendo un flujo de trabajo optimizado y una gestión basada en datos precisos.
 
 ## Arquitectura del Proyecto
