@@ -28,6 +28,18 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchBranches = async () => {
+        const token = localStorage.getItem('token');
+        if (token === 'demo_token') {
+            const mockBranches = [
+                { id: '1', name: 'Casa Matriz', supports_grooming: true, is_active: true },
+                { id: '2', name: 'Sucursal Norte', supports_grooming: true, is_active: true }
+            ];
+            setBranches(mockBranches);
+            setCurrentBranch(mockBranches[0]);
+            setIsLoading(false);
+            return;
+        }
+
         // Only fetch if authenticated
         if (!isAuthenticated) {
             setIsLoading(false);

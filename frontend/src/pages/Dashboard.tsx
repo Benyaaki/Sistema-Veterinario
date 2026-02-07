@@ -21,6 +21,22 @@ const Dashboard = () => {
     }, []);
 
     const loadStats = async () => {
+        if (user?.id === 'demo-123') {
+            setStats({
+                global: {
+                    sales: 450500,
+                    transactions: 24,
+                    appointments: 8
+                },
+                branches: [
+                    { branch_id: '1', name: 'Casa Matriz', sales: 300000, transactions: 15, appointments: 5 },
+                    { branch_id: '2', name: 'Sucursal Norte', sales: 150500, transactions: 9, appointments: 3 }
+                ]
+            });
+            setLoading(false);
+            return;
+        }
+
         try {
             // Calculate Start/End of TODAY in LOCAL time, sent as ISO
             const now = new Date();
@@ -182,7 +198,7 @@ const Dashboard = () => {
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                             <span className="opacity-90">Versión:</span>
-                            <span className="font-semibold">2.0.0</span>
+                            <span className="font-semibold">2.0.1 (Demo)</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="opacity-90">Usuario:</span>
