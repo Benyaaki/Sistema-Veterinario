@@ -200,12 +200,14 @@ const Clients = () => {
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                    >
-                        <Plus size={20} /> Nuevo Cliente
-                    </button>
+                    {hasRole('admin') && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                        >
+                            <Plus size={20} /> Nuevo Cliente
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex gap-2">
@@ -250,7 +252,11 @@ const Clients = () => {
                         <div className="bg-white rounded-xl shadow-sm border p-6 sticky top-6">
                             <div className="flex justify-between mb-4">
                                 <h2 className="text-xl font-bold">{selectedTutor.first_name} {selectedTutor.last_name}</h2>
-                                <button onClick={handleDeleteClient} className="text-red-600"><Trash2 size={20} /></button>
+                                {hasRole('admin') && (
+                                    <button onClick={handleDeleteClient} className="text-red-600">
+                                        <Trash2 size={20} />
+                                    </button>
+                                )}
                             </div>
 
                             <div className="space-y-4">
@@ -277,7 +283,11 @@ const Clients = () => {
                                 <div className={`p-4 rounded-lg border ${selectedTutor.debt > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
                                     <div className="flex justify-between">
                                         <p className="text-sm font-bold">Deuda Actual</p>
-                                        {selectedTutor.debt > 0 && <button onClick={() => { setPayAmount(selectedTutor.debt.toString()); setShowPayModal(true); }}><Edit size={16} /></button>}
+                                        {selectedTutor.debt > 0 && hasRole('admin') && (
+                                            <button onClick={() => { setPayAmount(selectedTutor.debt.toString()); setShowPayModal(true); }}>
+                                                <Edit size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                     <p className="text-2xl font-bold">${(selectedTutor.debt || 0).toLocaleString()}</p>
                                 </div>
@@ -285,7 +295,11 @@ const Clients = () => {
                                 <div className="bg-green-50 p-4 rounded-lg border">
                                     <div className="flex justify-between">
                                         <p className="text-sm font-bold">Descuento</p>
-                                        <button onClick={() => setIsEditingDiscount(!isEditingDiscount)}><Edit size={16} /></button>
+                                        {hasRole('admin') && (
+                                            <button onClick={() => setIsEditingDiscount(!isEditingDiscount)}>
+                                                <Edit size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                     {isEditingDiscount ? (
                                         <div className="flex gap-2 mt-1">

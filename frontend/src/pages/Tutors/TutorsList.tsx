@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import { Plus, Search, Eye, Trash2, User, Edit2 } from 'lucide-react';
 import { formatPhoneNumber } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 interface Tutor {
     _id: string;
@@ -13,6 +14,7 @@ interface Tutor {
 }
 
 const TutorsList = () => {
+    const { hasRole } = useAuth();
     const [tutors, setTutors] = useState<Tutor[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -72,13 +74,15 @@ const TutorsList = () => {
                                 className="w-full pl-10 pr-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                         </div>
-                        <Link
-                            to="/tutores/crear"
-                            className="bg-primary hover:opacity-90 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors shadow-sm whitespace-nowrap"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Nuevo Tutor</span>
-                        </Link>
+                        {hasRole('admin') && (
+                            <Link
+                                to="/tutores/crear"
+                                className="bg-primary hover:opacity-90 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors shadow-sm whitespace-nowrap"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Nuevo Tutor</span>
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -121,20 +125,24 @@ const TutorsList = () => {
                                             >
                                                 <Eye className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                             </Link>
-                                            <Link
-                                                to={`/tutores/editar/${tutor._id}`}
-                                                className="inline-block p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                                                title="Editar Datos"
-                                            >
-                                                <Edit2 className="w-5 h-5" />
-                                            </Link>
-                                            <button
-                                                onClick={() => handleDelete(tutor._id)}
-                                                className="inline-block p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Eliminar"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+                                            {hasRole('admin') && (
+                                                <>
+                                                    <Link
+                                                        to={`/tutores/editar/${tutor._id}`}
+                                                        className="inline-block p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                        title="Editar Datos"
+                                                    >
+                                                        <Edit2 className="w-5 h-5" />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleDelete(tutor._id)}
+                                                        className="inline-block p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Eliminar"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </>
+                                            )}
                                         </td>
                                     </tr>
                                 ))

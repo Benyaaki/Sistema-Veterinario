@@ -98,16 +98,18 @@ const Inventory = () => {
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={() => {
-                            setProductToEdit(undefined);
-                            setIsProductModalOpen(true);
-                        }}
-                        className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
-                    >
-                        <Plus size={20} />
-                        Nuevo Producto
-                    </button>
+                    {hasRole('admin') && (
+                        <button
+                            onClick={() => {
+                                setProductToEdit(undefined);
+                                setIsProductModalOpen(true);
+                            }}
+                            className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
+                        >
+                            <Plus size={20} />
+                            Nuevo Producto
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-4 items-center">
@@ -135,19 +137,19 @@ const Inventory = () => {
                             <th className="p-3 text-xs">Nombre Artículo</th>
                             <th className="p-3 text-xs">Categoría</th>
                             <th className="p-3 text-xs">Nombre de la Compañía</th>
-                            <th className="p-3 text-xs">Precio de Compra</th>
+                            {hasRole('admin') && <th className="p-3 text-xs">Precio de Compra</th>}
                             <th className="p-3 text-xs">Precio de Venta</th>
                             <th className="p-3 text-xs text-gray-500">IVA</th>
                             <th className="p-3 text-xs text-center uppercase tracking-wider">Stock</th>
-                            <th className="p-3 text-center text-xs">Acción</th>
+                            {hasRole('admin') && <th className="p-3 text-center text-xs">Acción</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {loading && (
-                            <tr><td colSpan={11} className="p-8 text-center text-gray-500">Cargando inventario...</td></tr>
+                            <tr><td colSpan={hasRole('admin') ? 10 : 8} className="p-8 text-center text-gray-500">Cargando inventario...</td></tr>
                         )}
                         {!loading && tableRows.length === 0 && (
-                            <tr><td colSpan={10} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
+                            <tr><td colSpan={hasRole('admin') ? 10 : 8} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
                         )}
                         {tableRows.map((product: any) => {
                             return (
@@ -170,7 +172,9 @@ const Inventory = () => {
                                         <span className="bg-gray-100 px-2 py-0.5 rounded-full">{product.category || 'General'}</span>
                                     </td>
                                     <td className="p-3 text-gray-500 text-xs max-w-[150px] truncate">{product.supplier_name || '-'}</td>
-                                    <td className="p-3 text-gray-900 font-mono text-xs">${product.purchase_price?.toLocaleString() || '0'}</td>
+                                    {hasRole('admin') && (
+                                        <td className="p-3 text-gray-900 font-mono text-xs">${product.purchase_price?.toLocaleString() || '0'}</td>
+                                    )}
                                     <td className="p-3 text-gray-900 font-bold font-mono text-xs">${product.sale_price?.toLocaleString() || '0'}</td>
                                     <td className="p-3 text-gray-500 text-[10px] font-mono whitespace-nowrap">
                                         {product.tax_percent > 0
@@ -183,16 +187,16 @@ const Inventory = () => {
                                             {product.stockQty}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-center">
-                                        <div className="flex justify-center gap-2">
-                                            <button
-                                                onClick={() => handleEditProduct(product)}
-                                                className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
-                                                title="Editar Producto"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            {hasRole('admin') && (
+                                    {hasRole('admin') && (
+                                        <td className="p-3 text-center">
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => handleEditProduct(product)}
+                                                    className="text-blue-500 hover:text-blue-700 bg-blue-50 p-1.5 rounded transition-colors"
+                                                    title="Editar Producto"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteProduct(product.id || product._id)}
                                                     className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded transition-colors"
@@ -200,9 +204,9 @@ const Inventory = () => {
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
-                                            )}
-                                        </div>
-                                    </td>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             )
                         })}
