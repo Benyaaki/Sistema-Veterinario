@@ -75,7 +75,10 @@ async def import_tutors(
 
     # Detect delimiter
     delimiter = ','
-    if ';' in decoded.split('\n')[0]:
+    first_line = decoded.split('\n')[0]
+    if '\t' in first_line:
+        delimiter = '\t'
+    elif ';' in first_line:
         delimiter = ';'
 
     csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
@@ -83,18 +86,29 @@ async def import_tutors(
     
     for row in csv_reader:
         try:
-            first_name = get_row_val(row, "Nombre", "first_name") or ""
-            last_name = get_row_val(row, "Apellidos", "last_name") or ""
-            full_name = get_row_val(row, "full_name") or f"{first_name} {last_name}".strip()
+            # Clean row keys (handle BOM or invisible characters)
+            cleaned_row = {str(k).strip().lstrip('\ufeff'): v for k, v in row.items() if k is not None}
+            
+            first_name = get_row_val(cleaned_row, "Nombre", "first_name", "FirstName") or ""
+            last_name = get_row_val(cleaned_row, "Apellidos", "last_name", "LastName") or ""
+            full_name = get_row_val(cleaned_row, "full_name", "Nombre Completo") or f"{first_name} {last_name}".strip()
             
             if not first_name and not last_name and not full_name:
                 continue
 
-            phone = get_row_val(row, "Teléfono", "phone") or ""
-            email = get_row_val(row, "Email", "email")
-            total_spent = get_row_val(row, "Total gastado", "total_spent")
+            phone = get_row_val(cleaned_row, "Teléfono", "phone", "Telefono", "Celular") or ""
+            email = get_row_val(cleaned_row, "Email", "email", "Correo")
             
-            notes = f"Importado. Gasto Histórico: {total_spent}" if total_spent else ""
+            # Clean email and phone
+            if email: email = email.strip()
+            if not email: email = None
+            
+            if phone: phone = phone.strip()
+            
+            raw_total_spent = get_row_val(cleaned_row, "Total gastado", "total_spent", "Gasto")
+            total_spent_val = parse_currency(raw_total_spent) if raw_total_spent else 0.0
+            
+            notes = f"Importado. Gasto Histórico: {raw_total_spent}" if raw_total_spent else ""
             
             tutor = Tutor(
                 first_name=first_name if first_name else full_name,
@@ -102,7 +116,10 @@ async def import_tutors(
                 phone=phone,
                 email=email,
                 notes=notes,
-                discount_percent=0.0
+                discount_percent=0.0,
+                total_spent=total_spent_val,
+                is_tutor=False,
+                is_client=True
             )
             tutors_to_insert.append(tutor)
         except Exception as e:
@@ -110,6 +127,7 @@ async def import_tutors(
             continue
 
     if tutors_to_insert:
+        # Use a loop or insert_many. insert_many is faster.
         await Tutor.insert_many(tutors_to_insert)
     
     return {"message": f"Se han importado {len(tutors_to_insert)} clientes exitosamente"}
@@ -138,14 +156,16 @@ async def import_products(
         
         # Detect delimiter
         delimiter = ','
-        first_line = decoded.split('\n')[0]
-        if ';' in first_line:
+        first_line = decoded.splitlines()[0]
+        if '\t' in first_line:
+            delimiter = '\t'
+        elif ';' in first_line:
             delimiter = ';'
 
         csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)
         
         products_to_insert = []
-        stocks_data = [] # List of (product_obj, {branch_name: qty})
+        stocks_data = [] # List of (row_idx, {branch_name: qty})
         
         branches_cache = {}
         all_branches = await Branch.find_all().to_list()
@@ -158,7 +178,7 @@ async def import_products(
             if norm_name in branches_cache:
                 return branches_cache[norm_name]
             new_branch = Branch(name=branch_name, is_active=True)
-            await new_branch.create()
+            await new_branch.insert()
             branches_cache[norm_name] = new_branch
             return new_branch
 
@@ -166,23 +186,22 @@ async def import_products(
         skipped_count = 0
 
         for row in csv_reader:
-            row_count += 1
             try:
-                name = get_row_val(row, "Nombre Artículo", "name")
+                name = get_row_val(row, "Nombre Artículo", "name", "Producto", "Artículo")
                 if not name:
                     skipped_count += 1
                     continue
 
-                sku = get_row_val(row, "UPC/EAN/ISBN", "sku")
-                category = get_row_val(row, "Categoría", "category")
-                supplier_name = get_row_val(row, "Nombre de la Compañía", "supplier_name")
+                sku = get_row_val(row, "UPC/EAN/ISBN", "sku", "Código", "Barcode")
+                category = get_row_val(row, "Categoría", "category", "Grupo")
+                supplier_name = get_row_val(row, "Nombre de la Compañía", "supplier_name", "Proveedor")
                 
-                p_price = parse_currency(get_row_val(row, "Precio de Compra", "purchase_price") or "0")
-                s_price = parse_currency(get_row_val(row, "Precio de Venta", "sale_price") or "0")
-                tax = parse_currency(get_row_val(row, "Porcentaje de Impuesto(s)", "tax_percent") or "0", is_percentage=True)
-                avatar = get_row_val(row, "Avatar", "image_url")
+                p_price = parse_currency(get_row_val(row, "Precio de Compra", "purchase_price", "Costo") or "0")
+                s_price = parse_currency(get_row_val(row, "Precio de Venta", "sale_price", "Precio") or "0")
+                tax = parse_currency(get_row_val(row, "Porcentaje de Impuesto(s)", "tax_percent", "IVA", "Impuesto") or "0", is_percentage=True)
+                avatar = get_row_val(row, "Avatar", "image_url", "Imagen", "Foto")
                 
-                ext_id_str = get_row_val(row, "Id", "external_id")
+                ext_id_str = get_row_val(row, "Id", "external_id", "ID Sistema")
                 ext_id = None
                 if ext_id_str:
                     try:
@@ -203,47 +222,69 @@ async def import_products(
                     kind="PRODUCT",
                     is_active=True
                 )
-                products_to_insert.append(product)
                 
                 # Parse branch stock columns
                 branch_stocks = {}
+                found_specific_stock = False
                 for key, value in row.items():
-                    if key and "Cantidad en Stock" in key:
-                        # Extract branch name: "Cantidad en Stock [BODEGA]" -> "BODEGA"
-                        branch_name = key.replace("Cantidad en Stock", "").replace("[", "").replace("]", "").strip()
-                        if branch_name == "VENCIMIENTO" or not branch_name:
-                            continue
-                        
-                        qty = int(parse_currency(value or "0"))
+                    if not key: continue
+                    key_upper = key.upper().strip()
+                    
+                    # Pattern: "CANTIDAD EN STOCK BODEGA" or "STOCK BODEGA" or "EXISTENCIA BODEGA"
+                    match_keywords = ["CANTIDAD EN STOCK", "STOCK", "EXISTENCIA", "CANTIDAD"]
+                    for kw in match_keywords:
+                        if key_upper.startswith(kw):
+                            branch_name = key_upper.replace(kw, "").replace("[", "").replace("]", "").strip()
+                            if branch_name == "VENCIMIENTO" or branch_name == "VALOR":
+                                continue
+                            if not branch_name:
+                                branch_name = "Principal"
+                            
+                            try:
+                                qty = int(parse_currency(value or "0"))
+                                branch_stocks[branch_name] = qty
+                                found_specific_stock = True
+                                break # Found a match for this key
+                            except:
+                                pass
+                
+                # Fallback: simple "Stock" + "Sucursal" columns if no specific headers found
+                if not found_specific_stock:
+                    stock_val = get_row_val(row, "Stock", "Cantidad", "Existencia", "Stock Actual")
+                    if stock_val is not None:
+                        qty = int(parse_currency(stock_val or "0"))
+                        branch_name = get_row_val(row, "Sucursal", "Branch", "Bodega", "Ubicación") or "Principal"
                         branch_stocks[branch_name] = qty
                 
-                stocks_data.append((product, branch_stocks))
+                products_to_insert.append(product)
+                stocks_data.append((row_count, branch_stocks))
+                row_count += 1
 
             except Exception as e:
-                print(f"Error parsing product row {row_count}: {e}")
+                print(f"Error parsing product row: {e}")
                 skipped_count += 1
                 continue
 
         if products_to_insert:
-            # We must insert products first to get their IDs
-            await Product.insert_many(products_to_insert)
-            
-            stocks_to_insert = []
-            for product, branch_map in stocks_data:
+            # Insert products one by one to ensure IDs are populated in the objects
+            for i, product in enumerate(products_to_insert):
+                await product.insert()
+                
+                # Get the associated stock data for this product
+                _, branch_map = stocks_data[i]
+                
                 for branch_name, qty in branch_map.items():
                     branch = await get_or_create_branch(branch_name)
-                    stocks_to_insert.append(Stock(
+                    stock_record = Stock(
                         branch_id=branch.id,
                         product_id=product.id,
                         quantity=qty
-                    ))
-            
-            if stocks_to_insert:
-                await Stock.insert_many(stocks_to_insert)
+                    )
+                    await stock_record.insert()
         
-        msg = f"Importación finalizada. {len(products_to_insert)} productos creados."
+        msg = f"Importación finalizada. {len(products_to_insert)} productos creados con su respectivo stock."
         if skipped_count > 0:
-            msg += f" {skipped_count} filas omitidas por falta de nombre o errores."
+            msg += f" {skipped_count} filas omitidas por errores."
         
         return {"message": msg}
 
@@ -273,7 +314,10 @@ async def import_suppliers(
             continue
             
     delimiter = ','
-    if ';' in decoded.split('\n')[0]:
+    first_line = decoded.split('\n')[0]
+    if '\t' in first_line:
+        delimiter = '\t'
+    elif ';' in first_line:
         delimiter = ';'
 
     csv_reader = csv.DictReader(StringIO(decoded), delimiter=delimiter)

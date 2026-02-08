@@ -29,6 +29,12 @@ class CashSession(Document):
     manual_expenses: float = 0.0 # Gastos
     manual_other_day_cash: float = 0.0
     manual_other_day_transbank: float = 0.0
+    manual_debt: float = 0.0
+    manual_transfer: float = 0.0
+    manual_next_day_cash: float = 0.0
+    handover_to_user_id: Optional[PydanticObjectId] = None
+    handover_denominations: Dict[str, int] = {}
+    handover_date: Optional[str] = None
     
     status: str = "OPEN" # OPEN, CLOSED
     

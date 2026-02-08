@@ -47,10 +47,10 @@ const POS = () => {
 
     const loadProfessionals = async () => {
         try {
-            const res = await api.get('/employees');
+            const res = await api.get('/users/');
             setProfessionals(res.data.filter((e: any) => {
-                const isVet = e.role?.includes('vet') || e.roles?.some((r: string) => r.includes('vet'));
-                const isGroomer = e.role?.includes('groom') || e.roles?.some((r: string) => r.includes('groom'));
+                const isVet = e.role === 'veterinarian' || e.roles?.includes('veterinarian');
+                const isGroomer = e.role === 'groomer' || e.roles?.includes('groomer');
                 return (isVet || isGroomer) && e.is_active;
             }));
         } catch (e) {
@@ -97,11 +97,11 @@ const POS = () => {
         }
         const delay = setTimeout(async () => {
             try {
-                const res = await productsService.getAll({
+                const { items } = await productsService.getAll({
                     search: scanQuery,
                     branch_id: currentBranch?.id || currentBranch?._id
                 });
-                setProductSuggestions(res.slice(0, 5));
+                setProductSuggestions(items.slice(0, 5));
             } catch (e) {
                 console.error(e);
                 setProductSuggestions([]);
@@ -131,12 +131,12 @@ const POS = () => {
             } else {
                 setLoading(true);
                 try {
-                    const res = await productsService.getAll({
+                    const { items } = await productsService.getAll({
                         search: scanQuery,
                         branch_id: currentBranch?.id || currentBranch?._id
                     });
-                    if (res.length > 0) {
-                        addToCart(res[0]);
+                    if (items.length > 0) {
+                        addToCart(items[0]);
                         setScanQuery('');
                     } else {
                         alert('Producto no encontrado');
@@ -194,7 +194,7 @@ const POS = () => {
         const prof = professionals.find(p => (p._id || p.id) === profId);
         const newCart = [...cart];
         newCart[index].professional_id = profId;
-        newCart[index].professional_name = prof ? `${prof.first_name} ${prof.last_name}` : null;
+        newCart[index].professional_name = prof ? `${prof.name || ''} ${prof.last_name || ''}`.trim() : null;
         setCart(newCart);
     };
 
@@ -308,7 +308,7 @@ const POS = () => {
                 ) : currentSession ? (
                     <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200 text-sm">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        Caja Abierta: <b>${currentSession.opening_balance?.toLocaleString()}</b>
+                        Caja Abierta
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1 rounded-full border border-red-200 text-sm">
@@ -405,7 +405,9 @@ const POS = () => {
                                                 <div className="text-right">
                                                     <div className="font-bold text-green-600">${product.sale_price.toLocaleString()}</div>
                                                     <div className="text-xs text-gray-500">
-                                                        {product.kind === 'PRODUCT' ? `Stock: ${product.stock ?? '-'}` : 'Servicio'}
+                                                        {product.kind === 'PRODUCT' ? (
+                                                            <>Stock: {['veterinaria', 'peluquería', 'peluqueria'].includes(product.category?.toLowerCase() || '') ? '-' : (product.stock ?? '-')}</>
+                                                        ) : 'Servicio'}
                                                         {product.category && <span className="text-blue-400 ml-1">• {product.category}</span>}
                                                     </div>
                                                 </div>
@@ -452,15 +454,15 @@ const POS = () => {
                                                     <option value="">Seleccionar...</option>
                                                     {professionals
                                                         .filter(p => {
-                                                            const isVet = p.role?.includes('vet') || p.roles?.some((r: string) => r.includes('vet'));
-                                                            const isGroomer = p.role?.includes('groom') || p.roles?.some((r: string) => r.includes('groom'));
+                                                            const isVet = p.role === 'veterinarian' || p.roles?.includes('veterinarian');
+                                                            const isGroomer = p.role === 'groomer' || p.roles?.includes('groomer');
 
                                                             if (item.category === 'Veterinaria') return isVet;
                                                             if (item.category === 'Peluquería') return isVet || isGroomer;
                                                             return true;
                                                         })
                                                         .map(p => (
-                                                            <option key={p._id || p.id} value={p._id || p.id}>{p.first_name} {p.last_name}</option>
+                                                            <option key={p._id || p.id} value={p._id || p.id}>{p.name || ''} {p.last_name || ''}</option>
                                                         ))}
                                                 </select>
                                             ) : (
@@ -470,7 +472,7 @@ const POS = () => {
                                         <td className="px-4 py-3 text-center">
                                             {item.kind === 'PRODUCT' && item.stock !== undefined ? (
                                                 <span className={`text-sm font-medium ${item.stock > 0 ? 'text-gray-600' : 'text-red-500'}`}>
-                                                    {item.stock}
+                                                    {['veterinaria', 'peluquería', 'peluqueria'].includes(item.category?.toLowerCase() || '') ? '-' : item.stock}
                                                 </span>
                                             ) : (
                                                 <span className="text-gray-400">-</span>
@@ -557,7 +559,7 @@ const POS = () => {
                                 <option value="DEBIT">Débito</option>
                                 <option value="CREDIT">Crédito</option>
                                 <option value="TRANSFER">Transferencia</option>
-                                <option value="DEBT">Deudar</option>
+                                <option value="DEBT">Deuda</option>
                             </select>
                         </div>
 

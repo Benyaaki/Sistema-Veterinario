@@ -92,7 +92,7 @@ const Deliveries = () => {
         }
         const delay = setTimeout(async () => {
             try {
-                const res = await productsService.getAll({
+                const { items: res } = await productsService.getAll({
                     search: scanQuery,
                     branch_id: currentBranch?.id || currentBranch?._id
                 });

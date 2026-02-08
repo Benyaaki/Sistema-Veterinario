@@ -408,6 +408,9 @@ async def product_stats(
             "quantity": qty
         }
 
+        if p.category and p.category.lower() in ['veterinaria', 'peluquería', 'peluqueria']:
+            continue
+            
         if qty <= 0:
             out_of_stock_items.append(item_info)
         elif qty <= threshold:
@@ -693,6 +696,10 @@ async def commission_report(
         
         sales = await Sale.find(*query).to_list()
         
+        # Fetch all possible professionals to have their latest names
+        all_users = await User.find_all().to_list()
+        user_name_map = {str(u.id): f"{u.name} {u.last_name or ''}".strip() for u in all_users}
+        
         prof_map = {} # prof_id -> {name, total_sales, items_count}
         
         for s in sales:
@@ -703,9 +710,16 @@ async def commission_report(
                         continue
                         
                     if pid not in prof_map:
+                        # Prioritize user map name (current name) over saved name
+                        current_name = user_name_map.get(pid)
+                        saved_name = item.professional_name or "Desconocido"
+                        
+                        # Use current name if saved name is suspect or current name exists
+                        display_name = current_name if current_name else saved_name.replace("undefined", "").strip() or "Desconocido"
+
                         prof_map[pid] = {
                             "professional_id": pid,
-                            "name": item.professional_name or "Desconocido",
+                            "name": display_name,
                             "total": 0.0,
                             "count": 0
                         }
@@ -714,6 +728,55 @@ async def commission_report(
                     prof_map[pid]["count"] += (item.quantity or 0)
                     
         return sorted(list(prof_map.values()), key=lambda x: x["total"], reverse=True)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/commissions/details")
+async def commission_details(
+    start: str,
+    end: str,
+    professional_id: str,
+    user: User = Depends(get_current_user)
+):
+    try:
+        start_dt = parse_date(start)
+        end_dt = parse_date(end, end_of_day=True)
+        
+        query = [
+            Sale.created_at >= start_dt,
+            Sale.created_at <= end_dt,
+            Sale.status == "COMPLETED"
+        ]
+        
+        sales = await Sale.find(*query).to_list()
+        
+        # Fetch all possible professionals to have their latest names
+        all_users = await User.find_all().to_list()
+        user_name_map = {str(u.id): f"{u.name} {u.last_name or ''}".strip() for u in all_users}
+
+        details = []
+        for s in sales:
+            for item in s.items:
+                if item.professional_id and str(item.professional_id) == professional_id:
+                    pid = str(item.professional_id)
+                    current_name = user_name_map.get(pid)
+                    saved_name = item.professional_name or "Desconocido"
+                    display_name = current_name if current_name else saved_name.replace("undefined", "").strip() or "Desconocido"
+
+                    details.append({
+                        "sale_id": str(s.id),
+                        "created_at": s.created_at,
+                        "product_name": item.name,
+                        "quantity": item.quantity,
+                        "unit_price": item.unit_price,
+                        "total": item.total,
+                        "customer_name": s.customer_name or "Cliente General",
+                        "category": item.category or "Sin Categoría",
+                        "professional_name": display_name
+                    })
+        
+        return sorted(details, key=lambda x: x["created_at"], reverse=True)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

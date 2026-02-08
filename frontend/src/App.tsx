@@ -25,6 +25,7 @@ import Receiving from './pages/Receiving';
 import Employees from './pages/Employees';
 import Branches from './pages/Branches';
 import SecurityManagement from './pages/SecurityManagement';
+import Commissions from './pages/Commissions';
 
 import ActivityHistory from './pages/ActivityHistory';
 import StockPage from './pages/Stock';
@@ -59,6 +60,7 @@ function App() {
                 {/* Clients (Tutors for Sales) */}
                 <Route path="/clientes" element={<Clients />} />
                 <Route path="/empleados" element={<Employees />} />
+                <Route path="/comisiones" element={<Commissions />} />
                 <Route path="/sucursales" element={<Branches />} />
                 <Route path="/proveedores" element={<Suppliers />} />
                 <Route path="/seguridad" element={<SecurityManagement />} />

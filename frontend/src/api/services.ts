@@ -71,9 +71,12 @@ export interface InventoryMovement {
 // --- Services ---
 
 export const productsService = {
-    getAll: async (params?: { search?: string; kind?: string; branch_id?: string }) => {
-        const { data } = await api.get<Product[]>('/products/', { params });
-        return data;
+    getAll: async (params?: { search?: string; kind?: string; category?: string; supplier_name?: string; branch_id?: string; limit?: number; page?: number }) => {
+        const response = await api.get<Product[]>('/products/', { params });
+        return {
+            items: response.data,
+            total: parseInt(response.headers['x-total-count'] || '0')
+        };
     },
     create: async (product: Product) => {
         const { data } = await api.post<Product>('/products/', product);
@@ -176,9 +179,42 @@ export const usersService = {
 };
 
 export const customersService = {
-    getAll: async (params?: { search?: string; role?: string }) => {
-        const { data } = await api.get<any[]>('/tutors', { params });
-        return data;
+    getAll: async (params?: { search?: string; role?: string; filter?: string; limit?: number; page?: number }) => {
+        const page = params?.page || 1;
+        const limit = params?.limit || 50;
+        const skip = (page - 1) * limit;
+
+        const response = await api.get<any[]>('/tutors', {
+            params: {
+                ...params,
+                limit,
+                skip
+            }
+        });
+        return {
+            items: response.data,
+            total: parseInt(response.headers['x-total-count'] || '0')
+        };
+    }
+};
+
+export const patientsService = {
+    getAll: async (params?: { search?: string; limit?: number; page?: number }) => {
+        const page = params?.page || 1;
+        const limit = params?.limit || 50;
+        const skip = (page - 1) * limit;
+
+        const response = await api.get<any[]>('/patients/', {
+            params: {
+                ...params,
+                limit,
+                skip
+            }
+        });
+        return {
+            items: response.data,
+            total: parseInt(response.headers['x-total-count'] || '0')
+        };
     }
 };
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from typing import List, Optional
 from app.models.tutor import Tutor
 from app.routes.auth import get_current_user
@@ -48,6 +48,7 @@ async def create_tutor(request: Request, tutor: TutorCreate, user = Depends(get_
 
 @router.get("/", response_model=List[Tutor])
 async def get_tutors(
+    response: Response,
     search: Optional[str] = None, 
     filter: Optional[str] = None,
     role: Optional[str] = "all", # tutor, client, all
@@ -82,6 +83,8 @@ async def get_tutors(
     # Execute
     if query_filters:
         query = Tutor.find(query_filters)
+        total = await query.count()
+        response.headers["X-Total-Count"] = str(total)
         
         # If searching, sort by relevance (name match)
         if search:
@@ -96,6 +99,8 @@ async def get_tutors(
         return await query.sort("first_name", "last_name").limit(limit).skip(skip).to_list()
     
     # No filters, default all
+    total = await Tutor.find_all().count()
+    response.headers["X-Total-Count"] = str(total)
     return await Tutor.find_all().sort("first_name", "last_name").limit(limit).skip(skip).to_list()
 
 @router.get("/{id}", response_model=Tutor)

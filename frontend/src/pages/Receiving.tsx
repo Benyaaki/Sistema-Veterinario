@@ -36,7 +36,7 @@ const Receiving = () => {
         }
         const delay = setTimeout(async () => {
             try {
-                const res = await productsService.getAll({
+                const { items: res } = await productsService.getAll({
                     search: scanQuery,
                     branch_id: currentBranch?.id || currentBranch?._id
                 });
@@ -59,7 +59,7 @@ const Receiving = () => {
                 setLoading(true);
                 setLoading(true);
                 try {
-                    const res = await productsService.getAll({
+                    const { items: res } = await productsService.getAll({
                         search: scanQuery,
                         branch_id: currentBranch?.id || currentBranch?._id
                     });
@@ -94,7 +94,8 @@ const Receiving = () => {
                 name: product.name,
                 sku: product.sku,
                 cost: product.purchase_price,
-                stock: product.stock, // Store stock
+                stock: product.stock,
+                category: product.category, // Store category
                 quantity: 1,
                 discount: 0,
                 total: product.purchase_price
@@ -318,7 +319,7 @@ const Receiving = () => {
                                         <td className="px-4 py-3 text-center">
                                             {item.stock !== undefined ? (
                                                 <span className={`text-sm font-medium ${item.stock > 0 ? 'text-gray-600' : 'text-red-500'}`}>
-                                                    {item.stock}
+                                                    {['veterinaria', 'peluquería', 'peluqueria'].includes(item.category?.toLowerCase() || '') ? '-' : item.stock}
                                                 </span>
                                             ) : (
                                                 <span className="text-gray-400">-</span>

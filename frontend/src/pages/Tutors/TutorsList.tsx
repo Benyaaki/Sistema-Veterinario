@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, Eye, Trash2, User, Edit2, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { customersService } from '../../api/services';
 import api from '../../api/axios';
-import { Plus, Search, Eye, Trash2, User, Edit2 } from 'lucide-react';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,18 +19,21 @@ const TutorsList = () => {
     const [tutors, setTutors] = useState<Tutor[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalTutors, setTotalTutors] = useState(0);
+    const itemsPerPage = 200;
 
     const fetchTutors = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/tutors', {
-                params: {
-                    search,
-                    role: 'tutor',
-                    limit: 1000
-                }
+            const res = await customersService.getAll({
+                search,
+                role: 'tutor',
+                page: currentPage,
+                limit: itemsPerPage
             });
-            setTutors(data);
+            setTutors(res.items);
+            setTotalTutors(res.total);
         } catch (error) {
             console.error(error);
         } finally {
@@ -38,10 +42,15 @@ const TutorsList = () => {
     };
 
     useEffect(() => {
-        // Debounce search could be better, but simple effect for now
+        setCurrentPage(1);
+    }, [search]);
+
+    useEffect(() => {
         const timeout = setTimeout(fetchTutors, 300);
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [search, currentPage]);
+
+    const totalPages = Math.ceil(totalTutors / itemsPerPage);
 
     const handleDelete = async (id: string) => {
         if (!confirm('¿Estás seguro de eliminar este tutor?')) return;
@@ -150,6 +159,72 @@ const TutorsList = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                        <div className="flex flex-1 justify-between sm:hidden">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Mostrando <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalTutors)}</span> de{' '}
+                                    <span className="font-medium">{totalTutors}</span> tutores
+                                </p>
+                            </div>
+                            <div>
+                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </button>
+                                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                        let pageNum = currentPage;
+                                        if (currentPage <= 3) pageNum = i + 1;
+                                        else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                        else pageNum = currentPage - 2 + i;
+
+                                        if (pageNum <= 0 || pageNum > totalPages) return null;
+
+                                        return (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <ChevronRight className="h-5 w-5" />
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

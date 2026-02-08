@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from beanie import PydanticObjectId
 from typing import List, Optional
 from app.models.product import Product
@@ -44,25 +44,45 @@ async def get_categories(user: User = Depends(get_current_user)):
 
 @router.get("/", response_model=List[Product])
 async def get_products(
+    response: Response,
     search: Optional[str] = None,
     kind: Optional[str] = None,
+    category: Optional[str] = None,
+    supplier_name: Optional[str] = None,
     branch_id: Optional[str] = None,
+    limit: Optional[int] = None,
+    page: int = Query(1, ge=1),
     user: User = Depends(get_current_user)
 ):
     query = Product.find(Product.is_active == True)
     if kind:
         query = query.find(Product.kind == kind)
+    if category:
+        import re
+        cat_safe = re.escape(category)
+        query = query.find({"category": {"$regex": f"^{cat_safe}$", "$options": "i"}})
+    if supplier_name:
+        import re
+        supplier_safe = re.escape(supplier_name)
+        query = query.find({"supplier_name": {"$regex": supplier_safe, "$options": "i"}})
     if search:
         import re
         search_safe = re.escape(search)
         # Strictly prefix matching for Name and SKU as per user request
-        # "yo escribo la letra m inicial de letra m... y no me muestre nada si no hay con m"
         query = query.find({
             "$or": [
                 {"name": {"$regex": f"^{search_safe}", "$options": "i"}},
                 {"sku": {"$regex": f"^{search_safe}", "$options": "i"}}
             ]
         })
+    
+    # Calculate total before pagination
+    total = await query.count()
+    response.headers["X-Total-Count"] = str(total)
+    
+    if limit:
+        skip = (page - 1) * limit
+        query = query.skip(skip).limit(limit)
     
     results = await query.to_list()
     
@@ -99,6 +119,9 @@ async def get_products(
     if not is_admin:
         for p in results:
             p.purchase_price = 0.0
+
+    # Explicitly expose the total count header for CORS
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
 
     return results
 

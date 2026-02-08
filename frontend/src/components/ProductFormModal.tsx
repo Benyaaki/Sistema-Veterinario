@@ -251,7 +251,7 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                                 onChange={e => setFormData({ ...formData, sale_price: Number(e.target.value) })}
                             />
                         </div>
-                        {formData.kind === 'PRODUCT' && (
+                        {formData.kind === 'PRODUCT' && !['veterinaria', 'peluquería', 'peluqueria'].includes(formData.category?.toLowerCase() || '') && (
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
                                 <input
@@ -261,6 +261,16 @@ const ProductFormModal = ({ isOpen, onClose, onSuccess, productToEdit }: Product
                                     value={formData.stock}
                                     onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
                                 />
+                            </div>
+                        )}
+                        {['veterinaria', 'peluquería', 'peluqueria'].includes(formData.category?.toLowerCase() || '') && (
+                            <div className="flex flex-col justify-end">
+                                <span className="text-xs text-gray-400 italic mb-1">
+                                    Categoría {formData.category?.toLowerCase() === 'veterinaria' ? 'Veterinaria' : 'Peluquería'}
+                                </span>
+                                <div className="px-3 py-2 border rounded-lg bg-gray-50 text-gray-400 text-sm font-mono text-center">
+                                    SIN STOCK ({formData.category?.toLowerCase() === 'veterinaria' ? 'TRATAMIENTO' : 'SERVICIO'})
+                                </div>
                             </div>
                         )}
                         <div>

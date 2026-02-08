@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, Search, Eye, Trash2, Dog, ChevronLeft, ChevronRight } from 'lucide-react';
+import { patientsService } from '../../api/services';
 import api from '../../api/axios';
-import { Plus, Search, Eye, Trash2, Dog } from 'lucide-react';
 
 interface Patient {
     _id: string;
@@ -15,19 +16,20 @@ const PatientsList = () => {
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPatients, setTotalPatients] = useState(0);
+    const itemsPerPage = 200;
 
     const fetchPatients = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/patients', {
-                params: { search }
+            const res = await patientsService.getAll({
+                search,
+                page: currentPage,
+                limit: itemsPerPage
             });
-            // Ideally backend expands tutor, or we fetch it. 
-            // For now, assuming backend returns IDs, and we might display "Tutor ID" or expand in backend.
-            // Backend Patient.find_all(fetch_links=True) helps if Link used, but we used IDs manually.
-            // Beanie with manual IDs doesn't auto-fetch. We need aggregation or separate fetch.
-            // For MVP, just show Name/Species/Breed.
-            setPatients(data);
+            setPatients(res.items);
+            setTotalPatients(res.total);
         } catch (error) {
             console.error(error);
         } finally {
@@ -36,9 +38,15 @@ const PatientsList = () => {
     };
 
     useEffect(() => {
+        setCurrentPage(1);
+    }, [search]);
+
+    useEffect(() => {
         const timeout = setTimeout(fetchPatients, 300);
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [search, currentPage]);
+
+    const totalPages = Math.ceil(totalPatients / itemsPerPage);
 
     const handleDelete = async (id: string) => {
         if (!confirm('¿Estás seguro?')) return;
@@ -131,6 +139,72 @@ const PatientsList = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                        <div className="flex flex-1 justify-between sm:hidden">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Mostrando <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalPatients)}</span> de{' '}
+                                    <span className="font-medium">{totalPatients}</span> pacientes
+                                </p>
+                            </div>
+                            <div>
+                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </button>
+                                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                        let pageNum = currentPage;
+                                        if (currentPage <= 3) pageNum = i + 1;
+                                        else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                        else pageNum = currentPage - 2 + i;
+
+                                        if (pageNum <= 0 || pageNum > totalPages) return null;
+
+                                        return (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <ChevronRight className="h-5 w-5" />
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

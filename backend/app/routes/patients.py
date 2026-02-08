@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from typing import List, Optional
 from datetime import datetime
 from app.models.patient import Patient, Species
@@ -76,10 +76,14 @@ async def create_patient(request: Request, patient_data: PatientCreate, user = D
     return new_patient
 
 @router.get("/", response_model=List[Patient])
-async def get_patients(search: Optional[str] = None, limit: int = 50, skip: int = 0, user = Depends(get_current_user)):
+async def get_patients(response: Response, search: Optional[str] = None, limit: int = 50, skip: int = 0, user = Depends(get_current_user)):
     query = Patient.find_all()
     if search:
         query = Patient.find({"name": {"$regex": search, "$options": "i"}})
+    
+    total = await query.count()
+    response.headers["X-Total-Count"] = str(total)
+    
     return await query.sort("name").limit(limit).skip(skip).to_list()
 
 class PatientWithDetails(Patient):

@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
     DollarSign, ShoppingCart, Users, Calendar,
-    Package, Download, Activity, ArrowRight
+    Package, Download, Activity, ArrowRight, Wallet
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -32,6 +32,7 @@ const Reports = () => {
     const [clientStats, setClientStats] = useState<any>(null);
     const [categoryStats, setCategoryStats] = useState<any[]>([]);
     const [commissionStats, setCommissionStats] = useState<any[]>([]);
+    const [cashHistory, setCashHistory] = useState<any[]>([]);
     const [inventoryModal, setInventoryModal] = useState<{ title: string, items: any[] } | null>(null);
 
     if (!hasAnyRole(['admin', 'superadmin'])) {
@@ -58,7 +59,8 @@ const Reports = () => {
                 loadProductStats(),
                 loadClientStats(),
                 loadCategoryStats(),
-                loadCommissionStats()
+                loadCommissionStats(),
+                loadCashHistory()
             ]);
         } catch (error) {
             console.error(error);
@@ -175,6 +177,15 @@ const Reports = () => {
             setCommissionStats(res.data);
         } catch (error) {
             console.error('Error loading commission stats:', error);
+        }
+    };
+
+    const loadCashHistory = async () => {
+        try {
+            const res = await api.get(`/cash/history?start_date=${dateRange.start}&end_date=${dateRange.end}`);
+            setCashHistory(res.data);
+        } catch (error) {
+            console.error('Error loading cash history:', error);
         }
     };
 
@@ -785,7 +796,9 @@ const Reports = () => {
                                     <tbody className="divide-y divide-gray-100">
                                         {commissionStats.map((prof, idx) => (
                                             <tr key={idx} className="hover:bg-gray-50">
-                                                <td className="px-3 py-2 font-medium">{prof.name}</td>
+                                                <td className="px-3 py-2 font-medium">
+                                                    {prof.name}
+                                                </td>
                                                 <td className="px-3 py-2 text-right">{prof.count}</td>
                                                 <td className="px-3 py-2 text-right font-bold text-blue-600">${prof.total.toLocaleString()}</td>
                                             </tr>
@@ -796,6 +809,90 @@ const Reports = () => {
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                    {/* Cash Sessions History (Cuadratura de Caja) */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2">
+                            <Wallet size={20} className="text-indigo-500" />
+                            Cuadratura de Caja (Historial de Turnos)
+                        </h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 text-gray-600 border-b">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left">Apertura</th>
+                                        <th className="px-4 py-3 text-left">Abierto por</th>
+                                        <th className="px-4 py-3 text-right">Monto Inicial</th>
+                                        <th className="px-4 py-3 text-left">Cierre</th>
+                                        <th className="px-4 py-3 text-left">Cerrado por</th>
+                                        <th className="px-4 py-3 text-right">Monto Final</th>
+                                        <th className="px-4 py-3 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {cashHistory.map((s, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="font-medium text-gray-900">
+                                                    {new Date(s.opened_at).toLocaleDateString()}
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                    {new Date(s.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-700">{s.opened_by_name}</td>
+                                            <td className="px-4 py-3 text-right font-medium">${s.opening_balance?.toLocaleString()}</td>
+                                            <td className="px-4 py-3">
+                                                {s.status === 'CLOSED' ? (
+                                                    <>
+                                                        <div className="font-medium text-gray-900">
+                                                            {new Date(s.closed_at).toLocaleDateString()}
+                                                        </div>
+                                                        <div className="text-xs text-gray-400">
+                                                            {new Date(s.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">ABIERTA</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-700">{s.closed_by_name}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                {s.status === 'CLOSED' ? (
+                                                    <span className="font-bold text-blue-600">${s.total_declared?.toLocaleString()}</span>
+                                                ) : (
+                                                    <span className="text-gray-300">--</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <button
+                                                    onClick={async () => {
+                                                        const res = await api.get(`/cash/report/${s._id || s.id}`, { responseType: 'blob' });
+                                                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                        const link = document.createElement('a');
+                                                        link.href = url;
+                                                        link.setAttribute('download', `reporte_caja_${s.id || s._id}.pdf`);
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                    }}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Descargar Reporte"
+                                                >
+                                                    <Download size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {cashHistory.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="px-4 py-12 text-center text-gray-400 italic">
+                                                No se encontraron sesiones de caja en este período.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </>

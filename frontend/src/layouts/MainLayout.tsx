@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, ShoppingCart, FileText, Package, Truck,
     Calendar, Users, Cat, Settings as SettingsIcon,
-    LogOut, ChevronDown, ChevronRight, Activity, BarChart3, Building2, Shield
+    LogOut, ChevronDown, ChevronRight, Activity, BarChart3, Building2, Shield, DollarSign
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import BranchSelector from '../components/BranchSelector';
@@ -100,6 +100,7 @@ const MainLayout = () => {
             visible: hasAnyRole(['admin', 'superadmin']),
             items: [
                 { to: '/empleados', label: 'Empleados', icon: Users, visible: hasPermission('employees') },
+                { to: '/comisiones', label: 'Comisiones', icon: DollarSign, visible: hasPermission('employees') },
                 { to: '/sucursales', label: 'Sucursales', icon: Building2, visible: hasPermission('employees') },
                 { to: '/reportes', label: 'Reportes', icon: BarChart3, visible: hasPermission('reports') },
                 { to: '/historial-actividades', label: 'Historial Actividades', icon: Activity, visible: hasPermission('activity') },

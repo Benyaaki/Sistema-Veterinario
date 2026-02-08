@@ -1,0 +1,11 @@
+Total branches: 6
+Branch: BODEGA (698771b10e43b12c42f725d3)
+Branch: OLIVAR (698771b10e43b12c42f725d5)
+Branch: RANCAGUA NORTE (698771b10e43b12c42f725d7)
+Branch: SAN FRANCISCO (698771b10e43b12c42f725d9)
+Branch: VALPARAISO (698771b10e43b12c42f725db)
+Branch: EN STOCK VENCIMIENTO (6987ae4dd48851b49d9f1360)
+
+Check stock for 'Doguitos Medallones de Carne 65 g':
+Product ID: 6987adf8f7edeca7ded200f4
+  No stock records found for this product.

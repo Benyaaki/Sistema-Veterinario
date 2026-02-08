@@ -255,6 +255,9 @@ const ActivityHistory = () => {
             case 'PASSWORD_RESET':
             case 'USER_PASSWORD_CHANGE':
                 return 'bg-amber-100 text-amber-700 font-bold';
+            case 'CASH_OPEN': return 'bg-emerald-100 text-emerald-700';
+            case 'CASH_CLOSE': return 'bg-rose-100 text-rose-700 font-bold';
+            case 'CASH_HANDOVER': return 'bg-blue-100 text-blue-700';
             default: return 'bg-gray-100 text-gray-700';
         }
     };
@@ -318,6 +321,9 @@ const ActivityHistory = () => {
             'DELIVERY_DELETE': 'Despacho Eliminado',
             'APPOINTMENT_ADD': 'Cita Agendada',
             'APPOINTMENT_DELETE': 'Cita Eliminada',
+            'CASH_OPEN': 'Apertura de Caja',
+            'CASH_CLOSE': 'Cierre de Caja',
+            'CASH_HANDOVER': 'Entrega de Turno',
         };
         return labels[type] || type.replace(/_/g, ' ');
     };
@@ -380,6 +386,9 @@ const ActivityHistory = () => {
                             <option value="PATIENT_ADD">Pacientes (Altas)</option>
                             <option value="CLIENT_ADD">Clientes (Altas)</option>
                             <option value="PRODUCT_ADD">Productos (Altas)</option>
+                            <option value="CASH_OPEN">Aperturas de Caja</option>
+                            <option value="CASH_CLOSE">Cierres de Caja</option>
+                            <option value="CASH_HANDOVER">Entregas de Turno</option>
                             <option value="CLIENT_DELETE">Eliminaciones</option>
                         </select>
                     </div>
